@@ -1,9 +1,9 @@
 # This make file will run SAIGE pipeline
 
-# This script uses the reference fai index file (REFFILEINDEX) to 
+# This script uses the reference fai index file (REFFILEINDEX) to
 #   create chcuks of size BINSIZE for STEP 2
 # Use THREADS= to set the number of threads to use for STEP 1
-# Use "make -j" to specify the number of parallel jobs for STEP 2 
+# Use "make -j" to specify the number of parallel jobs for STEP 2
 
 # Make variables can be replaced on the command line. For example
 #  make -f saige.Makefile -j20 THREADS=20 RESPONSE=BMI
@@ -20,12 +20,12 @@ REFFILE = /Users/snehalpatil/Documents/GithubProjects/ForkEncore/encore/anno/hs3
 REFFILEINDEX = $(addsuffix .fai, $(REFFILE))
 PHENOFILE = pheno.txt
 PHENOFILEIDCOL = IND_ID
-RESPONSE = "" 
+RESPONSE = ""
 RESPONSETYPE = quantitative
 INVNORM = FALSE
 COVAR = ""
 BINSIZE = 1500000
-THREADS = 8 
+THREADS = 8
 STEP1OPT = --memoryChunk=2
 STEP2OPT = --minMAF=0.001 --IsOutputAFinCaseCtrl=FALSE
 
@@ -79,7 +79,7 @@ $(OUTDIR)step2.bin.%.txt: $(OUTDIR)step1.rda
 STEP2FILES = $(foreach bin,$(BINS),$(OUTDIR)step2.bin.$(bin).txt)
 STEP2LOGS = $(foreach bin,$(STEP2FILES),$(bin).log)
 $(OUTDIR)$(OUTNAME): $(STEP2FILES)
-	awk 'FNR!=1 || NR==1' $^ | tr " " "\t" | bgzip -c > $@ 
+	awk 'FNR!=1 || NR==1' $^ | tr " " "\t" | bgzip -c > $@
 
 $(OUTDIR)$(OUTNAME).tbi: $(OUTDIR)$(OUTNAME)
 	tabix -s1 -b2 -e2 -S1 $^
