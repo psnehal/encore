@@ -85,8 +85,11 @@ $(OUTDIR)$(OUTNAME).tbi: $(OUTDIR)$(OUTNAME)
 	tabix -s1 -b2 -e2 -S1 $^
 
 $(OUTDIR)$(LOGNAME).gz: $(OUTDIR)$(OUTNAME).tbi
-	cat $(OUTDIR)$(LOGNAME) $(STEP2LOGS) | gzip -c > $@  && rm $(STEP2LOGS) && rm $(OUTDIR)$(LOGNAME)
+	cat $(OUTDIR)$(LOGNAME) $(STEP2LOGS) | gzip -c > $@
+
+.PHONY: clean
 
 clean:
-        rm -f $(OUTDIR)$(OUTNAME)
-        rm -f $(OUTDIR)$(LOGNAME)
+	rm -f $(STEP2FILES)
+	rm -f $(STEP2LOGS)
+	rm -f $(OUTDIR)$(LOGNAME)
