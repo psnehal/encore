@@ -58,7 +58,10 @@ class SaigeModel(BaseModel):
         covars = ped.get("covars")
         if len(covars)>0:
             cmd += " COVAR={}".format(",".join(covars))
-        cmd += " " + " ".join(self.get_opts(model_spec, geno)) 
+        cmd += " " + " ".join(self.get_opts(model_spec, geno))
+        cmd += "{}{}".format("\n" ,binary) + \
+            " REFFILE={}".format(geno.get_build_ref_path())+ \
+            " clean"
         return [cmd]
 
     def get_postprocessing_commands(self, geno, result_file="./results.txt.gz"):
