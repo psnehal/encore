@@ -12,7 +12,7 @@ downloaded.  By optimizing the most common analyses and providing rich ways to
 interact with results, Encore offers an exciting platform to investigate
 genetic hypotheses.
 
-Note: This page contains developer information for setting up and deploying a new instance of Encore. If you are looking for documentation on how to prepare and submit GWAS analyses using an established version of Encore, please see the <a href="https://github.com/psnehal/encore/wiki">Wiki</a>.
+<b>Note:</b> This page contains developer information for setting up and deploying a new instance of Encore. If you are looking for documentation on how to prepare and submit GWAS analyses using an established version of Encore, please see the <a href="https://github.com/psnehal/encore/wiki">Wiki</a>.
 
 # Developer Guide
 
