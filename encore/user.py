@@ -243,8 +243,8 @@ class User(UserMixin):
         cur = db.cursor(MySQLdb.cursors.DictCursor)
         cur.execute("""
             INSERT INTO users ( email,can_analyze,full_name,unique_name,affiliation,is_active,signed_con)
-            VALUES (%s, %s, %s, %s, %s, %s)
-                       """, (values['email'], values["can_analyze"], values["fullname"], values["uniquename"],values["affiliation"], values["is_active"],values["signed_con"]))
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                       """, (values['email'], values["can_analyze"], values["fullname"], values["uniquename"], values["affiliation"], values["is_active"], values["signed_con"]))
         #print("above commit")
         db.commit()
         new_id = cur.lastrowid
