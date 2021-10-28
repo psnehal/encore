@@ -244,9 +244,15 @@ class User(UserMixin):
 
         cur.execute("""
             INSERT INTO users ( email,can_analyze,full_name,unique_name,affiliation,is_active,signed_con)
+<<<<<<< HEAD
             VALUES (%s, %s, %s, %s, %s, %s , %s)
                        """, (values['email'], values["can_analyze"], values["fullname"], values["uniquename"],values["affiliation"], values["is_active"],values["signed_con"]))
 
+=======
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                       """, (values['email'], values["can_analyze"], values["fullname"], values["uniquename"], values["affiliation"], values["is_active"], values["signed_con"]))
+        #print("above commit")
+>>>>>>> c5c05a7c84060807072d135732665114253e1b48
         db.commit()
         new_id = cur.lastrowid
         new_user = User.from_id(new_id, db=db)
