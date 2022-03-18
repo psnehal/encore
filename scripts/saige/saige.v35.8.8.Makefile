@@ -30,7 +30,7 @@ STEP1OPT = --memoryChunk=2
 STEP2OPT = --minMAF=0.001 --IsOutputAFinCaseCtrl=FALSE
 
 #RLIBPATH = /net/encore1/saige/lib-v35.8.8
-RSCRIPT = R_LIBS=/sw/ph/centos7/R-modules/:/sw/ph/centos7/saige-py2.7/SAIGE /sw/arcts/centos7/stacks/gcc/8.2.0/R/3.6.1/bin/Rscript
+RSCRIPT = R_LIBS=/sw/ph/centos7/R-modules/:/sw/ph/centos7/saige-py2.7/SAIGE /sw/arcts/centos7/stacks/gcc/8.2.0/Ropenblas/3.6.1/bin/Rscript
 STEP1SCRIPT = $(APPDIR)step1_fitNULLGLMM_v35.R
 STEP2SCRIPT = $(APPDIR)step2_SPATests_savvy_v35.R
 APPDIR = /sw/ph/centos7/encore/scripts/saige/
