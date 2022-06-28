@@ -106,6 +106,7 @@ def register_helpers(app):
                     links["right"].append(("admin","Admin", url_for("admin.get_admin_page")))
                 links["right"].append(("help","Help", url_for("user.get_help")))
                 links["right"].append(("feedback","FeedBack", url_for("user.get_feedback")))
+                links["right"].append(("wiki","Wiki", 'https://github.com/psnehal/encore/wiki'))
             links["right"].append(("logout","Logout", url_for("auth.sign_out")))
             return links
 
