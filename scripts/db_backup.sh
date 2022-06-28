@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REACH=31
+REACH=180
 DATE=/bin/date
 DAY=$($DATE +%d)
 MONTH=$($DATE +%m)
@@ -22,12 +22,12 @@ mysqldump --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} \
 LOOP=0
 while [ $LOOP -lt $REACH ]
 do
-    let OFFSET=$LOOP+14
+    let OFFSET=$LOOP+150
     PREV_DATE=$($DATE --date="${YESTERDAY} -${OFFSET}days" +%Y.%m.%d)
     FILE=${BACKUP_LOCATION}/mariadb-backup.${PREV_DATE}.sql
 
     if [ -f "$FILE" ]; then
-        echo "Deleting old daily backup (keep rolling 14 days): ${FILE}"
+        echo "Deleting old daily backup (keep rolling 150 days): ${FILE}"
         rm ${FILE}
         if [ "$?" != "0" ]
         then
