@@ -5,7 +5,7 @@
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}">
 <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='js/dt_api_interface.js'') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/dt_api_interface.js') }}"></script>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-dialog.min.css') }}">
@@ -57,7 +57,7 @@
 		console.log( {{usigncon}} );
 
 		var usigncon =  {{usigncon}};
-		;
+
 
 		if(usigncon ==  0)
 		{
@@ -80,7 +80,7 @@
 							type: "post",
 							data: {name: username, useid:useid},
 							success: function(response) {
-								alert("Thank you for signning the user agreement");
+								alert("Thank you for signing the user agreement");
 							},
 							error: function(xhr) {
 								//Do Something to handle error
@@ -180,6 +180,8 @@
 		<h2>Jobs</h2>
 	</div>
 	<table id="jobs-table" width="100%"></table>
+
+
 
 
 </div>
