@@ -42,13 +42,16 @@ class Phenotype:
         return covar.get("levels", [])
 
     def check_usable(self):
+        print(self.meta.get("columns", []))
         sample_id_col = [x for x in self.meta.get("columns", []) if x.get("class", "")=="sample_id"]
+        print(sample_id_col)
         if len(sample_id_col) != 1:
             return False, "Unable to find sample ID column"
         return True, ""
 
     def as_object(self):
-        obj = {key: getattr(self, key) for key in self.__dbfields if hasattr(self, key)} 
+        obj = {key: getattr(self, key) for key in self.__dbfields if hasattr(self, key)}
+        print(self.pheno_id)
         obj["pheno_id"] = self.pheno_id
         obj["meta"] = self.meta
         obj["is_usable"], obj["usable_result"] = self.check_usable()

@@ -699,6 +699,7 @@ def post_pheno():
     pheno.meta = meta
     line_count = sum(1 for _ in pheno_reader.row_extractor()) 
     meta["records"] = line_count
+    print(pheno_meta_path)
     with open(pheno_meta_path, "w") as f:
         json.dump(meta, f, indent=2)
     result = {"id": pheno_id,  \
