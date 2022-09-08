@@ -30,11 +30,11 @@ STEP1OPT = --memoryChunk=2
 STEP2OPT = --minMAF=0.001 --IsOutputAFinCaseCtrl=FALSE
 
 #RLIBPATH = /net/encore1/saige/lib-v35.8.8
-RSCRIPT = R_LIBS=/sw/ph/centos7/R-modules/:/sw/ph/centos7/saige-py2.7/SAIGE /sw/arcts/centos7/stacks/gcc/8.2.0/Ropenblas/3.6.1/bin/Rscript
+RSCRIPT = R_LIBS=/sw/pkgs/arc/encore/R-modules-SAIGE-0.39.4 /sw/pkgs/arc/stacks/gcc/10.3.0/Ropenblas/4.2.0/bin/Rscript
 STEP1SCRIPT = $(APPDIR)step1_fitNULLGLMM_v35.R
 STEP2SCRIPT = $(APPDIR)step2_SPATests_savvy_v35.R
-APPDIR = /sw/ph/centos7/encore/scripts/saige/
-TABIX = /sw/ph/centos7/tabix/1.9/bin
+APPDIR = /sw/pkgs/arc/encore/encore/scripts/saige/
+TABIX = /sw/pkgs/arc/encore/tabix/1.9/bin
 
 ifeq ("$(wildcard $(REFFILEINDEX))","")
 $(error Cannot read REFFILEINDEX ($(REFFILEINDEX)) in order to create chunks for step 2)
