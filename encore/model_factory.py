@@ -37,14 +37,14 @@ class ModelFactory:
         return ModelFactory.get(model_code, working_directory, config)
 
 
-ModelFactory.register(LMEpactsModel)
-ModelFactory.register(LMMEpactsModel)
-ModelFactory.register(SkatOEpactsModel)
-ModelFactory.register(MMSkatOEpactsModel)
+#ModelFactory.register(LMEpactsModel)
+#ModelFactory.register(LMMEpactsModel)
+#ModelFactory.register(SkatOEpactsModel)
+#ModelFactory.register(MMSkatOEpactsModel)
 ModelFactory.register(LinearSaigeModel)
 ModelFactory.register(BinarySaigeModel)
-ModelFactory.register(MMSkatEpactsModel)
-ModelFactory.register(MMVTEpactsModel)
-ModelFactory.register(MMCMCEpactsModel)
+#ModelFactory.register(MMSkatEpactsModel)
+#ModelFactory.register(MMVTEpactsModel)
+#ModelFactory.register(MMCMCEpactsModel)
 
             
