@@ -203,7 +203,7 @@ def get_check_in_oidcview(target):
                     userdev['affiliation']='test'
                     #userdev['creation_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
                     #userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
-               
+
                     user.fix_nullentry(userdev,db)
                     print("user updated")
                 elif not uname:

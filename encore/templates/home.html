@@ -59,54 +59,6 @@
 		var usigncon =  {{usigncon}};
 
 
-		if(usigncon ==  0)
-		{
-			var dialog = new BootstrapDialog({
-				message: function(dialogRef){
-					var $message = $('<div>  I agree not to reconstruct genetic data and attempt to identify participants.' +
-							'</br> <label for="inputName">Please sign the name</label>' +
-							'                            <input type="text" class="form-control" id="inputName"></div></br></br>');
-					var $button = $(' <button class="btn btn-primary btn-sm btn-block padding-top: 30px; \n' +
-							'\tpadding bottom: 10px; ">Submit</button></span>');
-					$button.on('click', {dialogRef: dialogRef}, function(event){
-						console.log($('#inputName').val());
-						var useid = {{uid}};
-						console.log(useid);
-						var username= $('#inputName').val();
-
-
-						$.ajax({
-							url: "/api/usersign",
-							type: "post",
-							data: {name: username, useid:useid},
-							success: function(response) {
-								alert("Thank you for signing the user agreement");
-							},
-							error: function(xhr) {
-								//Do Something to handle error
-							}
-						});
-
-						event.data.dialogRef.close();
-					});
-					$message.append($button);
-
-					return $message;
-				},
-				closable: false
-			});
-			dialog.realize();
-			dialog.getModalHeader().hide();
-			dialog.getModalFooter().hide();
-			dialog.setSize(BootstrapDialog.SIZE_SMALL);
-
-			dialog.getModalBody().css('background-color', '#fff');
-			dialog.getModalBody().css('color', 'black');
-
-			dialog.open();
-
-
-		}
 
 
 
