@@ -39,11 +39,17 @@ class User(UserMixin):
         return self._is_active
 
     def log_login(self, db):
-        #print("in log login")
         cur = db.cursor(MySQLdb.cursors.DictCursor)
         sql = "UPDATE users SET last_login_date = NOW() WHERE id = %s"
         cur.execute(sql, (self.rid, ))
         db.commit()
+
+    def fix_nullentry(self,values,db):
+        cur = db.cursor(MySQLdb.cursors.DictCursor)
+        sql = "UPDATE users SET full_name = %s, unique_name = %s, can_analyze = 1,is_active=1, signed_con = 1 WHERE id = %s"
+        cur.execute(sql, (values['fullname'],values['uniquename'],self.rid, ))
+        db.commit()
+
 
     def set_inactive(self,db):
         cur = db.cursor(MySQLdb.cursors.DictCursor)
