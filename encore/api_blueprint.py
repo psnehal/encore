@@ -27,6 +27,8 @@ import sys, traceback
 import subprocess
 import requests
 import numpy as np
+import csv
+import pandas as pd
 
 api = Blueprint("api", __name__)
 def safe_cast(val, to_type, default=None):
@@ -632,6 +634,42 @@ def hashfile(afile, hasher=None, blocksize=65536):
         hasher.update(buf)
         buf = afile.read(blocksize)
     return hasher.digest()
+def readSampleIDtoChipDict():
+    sample_chip_mapping = current_app.config.get("SAMPLE_ID_MAPPING", "./")
+    id_dict = {}
+    arr = pd.read_csv(sample_chip_mapping, sep='\t', header=None)
+    for ind in arr.index:
+        line = arr[0][ind]
+        id_dict[arr[0][ind]] = arr[1][ind]
+    return id_dict
+
+
+def addChipColumn(afile,bfile):
+    print(afile)
+    print(bfile)
+    id_dict = readSampleIDtoChipDict()
+    with open(afile, 'r') as csvfile:
+        delimiter = str(csv.Sniffer().sniff(csvfile.read()).delimiter)
+
+    with open(afile, 'r') as csvinput:
+
+
+        with open(bfile, 'w') as csvoutput:
+            writer = csv.writer(csvoutput, lineterminator='\n')
+            reader = csv.reader(csvinput)
+            count = 1
+            for row in csv.reader(csvinput,delimiter=delimiter):
+                sid =row[0]
+                chipname= id_dict.get(sid)
+                if (count ==1):
+                    print("Sid is :", sid, "chipname is:", chipname)
+                    writer.writerow(row + ["chip"])
+                else:
+
+                    writer.writerow(row + [chipname])
+                count = count+1
+
+        print("created file with updated columns")
 
 @api.route("/phenos", methods=["POST"])
 def post_pheno():
@@ -644,22 +682,28 @@ def post_pheno():
     if not pheno_id:
         raise ApiException("COULD NOT GENERATE PHENO ID")
     pheno_file = request.files["pheno_file"]
-    print(pheno_file)
+
+    print("pheno_file",pheno_file)
     orig_file_name = pheno_file.filename
+
     pheno_name = suggest_pheno_name(orig_file_name)
     pheno_directory = os.path.join(current_app.config.get("PHENO_DATA_FOLDER", "./"), pheno_id)
     try:
+        print("pheno_directory",pheno_directory)
         os.mkdir(pheno_directory)
         pheno_file_path = os.path.join(pheno_directory, "pheno.txt")
+        updated_pheno_path = os.path.join(pheno_directory, "pheno_updated.txt")
         pheno_meta_path = os.path.join(pheno_directory, "meta.json")
-        print(pheno_meta_path)
+        print("saving the file in the new path")
         pheno_file.save(pheno_file_path)
-        md5 =  hashfile(open(pheno_file_path, "rb")).hex()
+        addChipColumn(pheno_file_path,updated_pheno_path)
+        md5 =  hashfile(open(updated_pheno_path, "rb")).hex()
     except Exception as e:
         print("File saving error: %s" % e)
         raise ApiException("COULD NOT SAVE FILE")
     # file has been saved to server
     existing_pheno = Phenotype.get_by_hash_user(md5, user.rid, current_app.config)
+    print("existing_pheno:",existing_pheno)
     if existing_pheno:
         shutil.rmtree(pheno_directory)
         pheno_id = existing_pheno.pheno_id
@@ -670,7 +714,7 @@ def post_pheno():
         pheno_dict["existing"] = True
         return ApiResult(pheno_dict)
     # file has not been uploaded before
-    istext, filetype, mimetype = PhenoReader.is_text_file(pheno_file_path)
+    istext, filetype, mimetype = PhenoReader.is_text_file(updated_pheno_path)
     if not istext:
         shutil.rmtree(pheno_directory)
         raise ApiException("NOT A RECOGNIZED TEXT FILE",
@@ -696,7 +740,7 @@ def post_pheno():
         meta = pheno_reader.infer_meta( sample_ids = latest_geno.get_samples() )
     else:
         meta = pheno_reader.infer_meta()
-    pheno.meta = meta
+    pheno.meta = metainfer_meta
     line_count = sum(1 for _ in pheno_reader.row_extractor()) 
     meta["records"] = line_count
     print(pheno_meta_path)
