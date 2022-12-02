@@ -208,6 +208,19 @@ CREATE TABLE IF NOT EXISTS `access_job_log` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `job_user_roles`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `id_to_chipmapping` (
+  `id` INT UNSIGNED NOT NULL,
+  `feezeno` INT UNSIGNED NOT NULL,
+  `chipname` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `fk_job_user_roles_idx` (`id` ASC)
+);
+
+
 -- -----------------------------------------------------
 -- function uuid_to_bin
 -- -----------------------------------------------------
