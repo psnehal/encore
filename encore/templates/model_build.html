@@ -248,15 +248,28 @@
 					covars.forEach(function(col) {
 						if (hideCols.indexOf(col.class)<0 &&
 							col.class != "fixed" && col.class != "id" && col.class!= "descr") {
-							opts.push({id: col.name, text: col.name});
+
+							if(col.name =="chip")
+							{
+								console.log("found chip");
+								opts.push({id: col.name, text: col.name});
+							}
+							else
+							{
+								opts.push({id: col.name, text: col.name});
+							}
+
+
 						}
 					});
 				}
+				console.log(opts);
 				responseSelect.html("").select2(
-					{"data": [""].concat(opts),
+					{"data": [].concat(opts),
 					placeholder: "",
 					minimumResultsForSearch: 4});
 				covariateSelect.html("").select2({"data": opts});
+				covariateSelect.val("chip").trigger("change");
 				formChanged();
 			});
 		}
@@ -341,19 +354,39 @@
 		} 
 
 		$(function() {
+
+			$("#covariates").on("select2:unselect", (e) => {
+				console.log("unselecting something", e.params)
+			})
+
 			$("#covar_add_all").click(function(evt) {
 				evt.preventDefault();
 				var resp = responseSelect.val();
 				var opts = [];
+
+
 				covars.forEach(function(col) {
 					if (col.name != resp) {
 						opts.push(col.name);
+						console.log("chip",col.name);
 					}
 				});
+				console.log("opts", opts);
 				covariateSelect.val(opts).trigger("change");
 			});
 			$("#covar_remove_all").click(function(evt) {
 				evt.preventDefault();
+				var resp = responseSelect.val();
+				var opts = [];
+
+				console.log("resp:",resp);
+				covars.forEach(function(col) {
+					if (col.name != resp) {
+						opts.push(col.name);
+						console.log("from remove chip",col.name);
+					}
+				});
+
 				covariateSelect.val("").trigger("change");
 			});
 			$("#genopheno_add_all").click(function(evt) {
@@ -557,9 +590,12 @@
 					<label for="covariates" class="control-label col-xs-2">Covariates</label>
 					<div class="col-xs-10">
 						<select id="covariates" name="covariates" class="form-control" multiple="multiple">
-							<option>Chip</option>
+
 						</select>
 						<br/><a href="#" id="covar_add_all">Add All</a> - <a href="#" id="covar_remove_all">Remove All</a>
+						<div id="container">
+							Chip is automatically added to your analysis.Please make sure
+						</div>
 					</div>
 				</div>
 				<div class="form-group" id="genopheno_input">

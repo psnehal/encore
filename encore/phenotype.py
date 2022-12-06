@@ -21,7 +21,7 @@ class Phenotype:
         self.meta = meta
        
     def get_raw_path(self):
-        return self.relative_path("pheno.txt")
+        return self.relative_path("pheno_updated.txt")
 
     def get_pheno_reader(self):
         return PhenoReader(self.get_raw_path(), self.meta)
