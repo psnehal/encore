@@ -733,14 +733,17 @@ def post_pheno():
     # file has been saved to DB
     pheno = Phenotype.get(pheno_id, current_app.config)
     pheno_reader = pheno.get_pheno_reader()
+    print(pheno_reader.path)
     # find samples ids
     latest_geno = next(iter(Genotype.list_all_for_user(user)), None)
+
     if latest_geno:
         latest_geno = Genotype.get(latest_geno["id"], current_app.config)
         meta = pheno_reader.infer_meta( sample_ids = latest_geno.get_samples() )
     else:
         meta = pheno_reader.infer_meta()
-    pheno.meta = metainfer_meta
+    pheno.meta = meta
+
     line_count = sum(1 for _ in pheno_reader.row_extractor()) 
     meta["records"] = line_count
     print(pheno_meta_path)
