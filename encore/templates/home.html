@@ -82,7 +82,8 @@
 		<ul class="home-nav-list">
 			<li><a href="{{ url_for("user.get_pheno_upload") }}">Upload New Phenotype File</a></li>
 			{% if phenos %}
-			<li><a href="{{ url_for("user.get_model_build") }}">Create New Job from Existing Phenotypes</a></li>
+			<li><a href="{{ url_for("user.get_model_build") }}">Create New Job from Existing Phenotypes</a>
+				</li>
 			{% endif %}
 		</ul>
 		{% else %}
@@ -130,6 +131,7 @@
 <div class="section">
 	<div class="section-title">
 		<h2>Jobs</h2>
+
 	</div>
 	<table id="jobs-table" width="100%"></table>
 
