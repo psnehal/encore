@@ -638,6 +638,7 @@ def readSampleIDtoChipDict():
     sample_chip_mapping = current_app.config.get("SAMPLE_ID_MAPPING", "./")
     id_dict = {}
     arr = pd.read_csv(sample_chip_mapping, sep='\t', header=None)
+    #df = pd.read_csv( file_, index_col=None, header=0, engine='python')
     for ind in arr.index:
         line = arr[0][ind]
         id_dict[arr[0][ind]] = arr[1][ind]
@@ -651,9 +652,8 @@ def addChipColumn(afile,bfile):
     with open(afile, 'r') as csvfile:
         delimiter = str(csv.Sniffer().sniff(csvfile.read()).delimiter)
 
+    chiplist=[]
     with open(afile, 'r') as csvinput:
-
-
         with open(bfile, 'w') as csvoutput:
             writer = csv.writer(csvoutput, lineterminator='\n')
             reader = csv.reader(csvinput)
@@ -667,7 +667,16 @@ def addChipColumn(afile,bfile):
                 else:
 
                     writer.writerow(row + [chipname])
+                    if chipname not in chiplist:
+                        chiplist += [chipname]
+
+
                 count = count+1
+        chipl = len(chiplist)
+        if chipl  == 1:
+            print("All the sample IDs are on the same chip")
+        else:
+            print("SAmples IDs are on :", len(chiplist) , "chips");
 
         print("created file with updated columns")
 

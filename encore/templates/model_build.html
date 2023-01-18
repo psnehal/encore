@@ -229,7 +229,7 @@
 			} else if (covarcount>0) {
 				name = name + " = " + covarnames.map(function(a) {return a[0];}).join(" + ");
 			}
-
+            updateRegions();
 			var region = regionSelect.val();
 			if (region != "gwas") {
 				name = name + " [" + region + "]";
@@ -269,7 +269,14 @@
 					placeholder: "",
 					minimumResultsForSearch: 4});
 				covariateSelect.html("").select2({"data": opts});
-				covariateSelect.val("chip").trigger("change");
+
+                if (covariateSelect != 'undefined')
+                {
+                    covariateSelect.val("chip").trigger("change");
+                }
+
+
+
 				formChanged();
 			});
 		}
