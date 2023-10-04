@@ -38,7 +38,7 @@ class SaigeModel(BaseModel):
             opts.append("CHRS='{}'".format(geno.get_chromosomes()))
         return opts 
 
-    def get_analysis_commands(self, model_spec, geno, ped):
+    def get_analysis_commands(self, model_spec, geno, pheno, ped):
         pipeline = model_spec.get("pipeline_version", "saige-0.26")
         binary = self.app_config.get("SAIGE_BINARY", None)
         if isinstance(binary, dict):
@@ -59,9 +59,8 @@ class SaigeModel(BaseModel):
         if len(covars)>0:
             cmd += " COVAR={}".format(",".join(covars))
         cmd += " " + " ".join(self.get_opts(model_spec, geno))
-        cmd += "{}{}".format("\n" ,binary) + \
-            " REFFILE={}".format(geno.get_build_ref_path())+ \
-            " clean"
+        cmd += " clean"
+
         return [cmd]
 
     def get_postprocessing_commands(self, geno, result_file="./results.txt.gz"):
@@ -105,7 +104,7 @@ class SaigeModel(BaseModel):
 
         ped = self.write_ped_file(self.relative_path("pheno.ped"), model_spec, geno, pheno)
         cmds =  self.if_exit_success(
-            self.get_analysis_commands(model_spec, geno, ped), 
+            self.get_analysis_commands(model_spec, geno, pheno, ped),
             self.get_postprocessing_commands(geno))
         return {"commands": cmds}
 
@@ -138,6 +137,11 @@ class SaigeModel(BaseModel):
             for line in f:
                 if "matrix is singular" in line:
                     return "Matrix is singular or not positive definite"
+                elif "parameter estimate is 0" in line:
+                    return "The first variance component parameter estimate is 0"
+                elif "variance of the phenotype is much smaller" in line:
+                    return ("Variance of the phenotype is much smaller than 1. "
+                        "Please consider using inverse normalized response")
         return None
         
 class LinearSaigeModel(SaigeModel):

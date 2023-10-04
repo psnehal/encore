@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `id` BINARY(16) NOT NULL,
   `user_id` INT UNSIGNED NOT NULL,
   `name` VARCHAR(128) NOT NULL,
+  `description` VARCHAR(5000),
   `error_message` VARCHAR(512) NULL,
   `status_id` INT UNSIGNED NOT NULL,
   `geno_id` BINARY(16),
@@ -152,6 +153,7 @@ CREATE TABLE IF NOT EXISTS `phenotypes` (
   `id` BINARY(16) NOT NULL,
   `user_id` INT UNSIGNED NOT NULL,
   `name` VARCHAR(512) NOT NULL,
+  `description` VARCHAR(5000),
   `orig_file_name` VARCHAR(512) NOT NULL,
   `md5sum` VARCHAR(32) NULL,
   `is_active` BOOL DEFAULT 1,
@@ -186,30 +188,7 @@ CREATE TABLE IF NOT EXISTS `notices` (
   PRIMARY KEY (`id`))
 ENGINE = InnoDB;
 
--- -----------------------------------------------------
--- Table `access_job_log`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `access_job_log` (
-  `access_date` DATE NOT NULL,
-  `user_id` INT UNSIGNED NOT NULL,
-  `job_id` BINARY(16) NOT NULL,
-  PRIMARY KEY (`access_date`, `user_id`, `job_id`),
-  INDEX `fk_access_job_users_idx` (`user_id` ASC),
-  INDEX `fk_access_job_jobs_idx` (`job_id` ASC),
-  CONSTRAINT `fk_access_job_users`
-    FOREIGN KEY (`user_id`)
-    REFERENCES `users` (`id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_access_job_jobs`
-    FOREIGN KEY (`job_id`)
-    REFERENCES `jobs` (`id`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
 
-
--- -----------------------------------------------------
 -- Table `job_user_roles`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `id_to_chipmapping` (
@@ -219,6 +198,22 @@ CREATE TABLE IF NOT EXISTS `id_to_chipmapping` (
   PRIMARY KEY (`id`),
   INDEX `fk_job_user_roles_idx` (`id` ASC)
 );
+
+
+-- Table `access_job_log`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `access_api_log` (
+  `access_date` DATE NOT NULL,
+  `user_id` INT UNSIGNED NOT NULL,
+  `count` INT UNSIGNED NOT NULL default 1,
+  PRIMARY KEY (`access_date`, `user_id`),
+  INDEX `fk_access_api_users_idx` (`user_id` ASC),
+  CONSTRAINT `fk_access_api_users`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------

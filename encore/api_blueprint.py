@@ -6,7 +6,7 @@ from werkzeug.urls import url_encode
 from encore import sql_pool
 from .user import User
 from .job import Job 
-from .auth import check_view_job, check_edit_job, can_user_edit_job, check_edit_pheno, admin_required
+from .auth import check_view_job, check_edit_job, can_user_edit_job, check_edit_pheno, admin_required, check_view_pheno
 from .genotype import Genotype
 from .phenotype import Phenotype
 from .notice import Notice
@@ -14,6 +14,7 @@ from .pheno_reader import PhenoReader
 from .slurm_queue import SlurmJob, get_queue
 from .model_factory import ModelFactory
 from .notifier import get_notifier
+from .access_tracker import AccessTracker
 from .db_helpers import PagedResult, PageInfo, QueryInfo
 import os
 import re
@@ -31,6 +32,7 @@ import csv
 import pandas as pd
 
 api = Blueprint("api", __name__)
+
 def safe_cast(val, to_type, default=None):
     try:
         return to_type(val)
@@ -79,9 +81,29 @@ def before_request():
     # Just here to trigger the login_required before any request
     pass
 
+@api.route("/", methods=["GET"])
+def list_endpoints():
+    endpoints = [
+        {"key": "geno-list", "url": url_for("api.get_genotypes"),
+            "description": "List available genotypes", "verb": "GET"},
+        {"key": "job-list", "url": url_for("api.get_jobs"),
+            "description": "List available jobs", "verb": "GET"},
+        {"key": "job-get", "url": url_for("api.get_genotype", geno_id="_JOBID_"),
+            "description": "Get specific job", "verb": "GET",
+            "url-params": [{"key": "JOBID", "description": "Requested job ID", "pattern": "_JOBID_"}]},
+        {"key": "pheno-list", "url": url_for("api.get_phenotypes"),
+            "description": "List available phenotype files", "verb": "GET"},
+        {"key": "pheno-get", "url": url_for("api.get_pheno", pheno_id="_PHENOID_"),
+            "description": "Get specific phenotype", "verb": "GET",
+            "url-params": [{"key": "PHENOID", "description": "Requested phenotype ID", "pattern": "_PHENOID_"}]},
+    ]
+    header = {"api_version": "0.1"}
+    return ApiResult(endpoints, header=header)
+
 @api.route("/genos", methods=["GET"])
 def get_genotypes():
-    genos = Genotype.list_all_for_user(current_user.rid)
+    query = get_query_info(request)
+    genos = Genotype.list_all_for_user(current_user.rid, query=query)
     def get_stats(x):
         s = Genotype.get(x["id"],current_app.config).get_stats() 
         s["name"] = x["name"]
@@ -90,11 +112,14 @@ def get_genotypes():
         s["id"] = x["id"]
         return s
     stats = [get_stats(x) for x in genos]
-    return ApiResult(stats)
+    genos.results = stats
+    return ApiResult(genos, request=request)
 
 @api.route("/genos/<geno_id>", methods=["GET"])
 def get_genotype(geno_id):
     g = Genotype.get(geno_id, current_app.config)
+    if g is None:
+        raise ApiException("GENOTYPE NOT FOUND", 404)
     return ApiResult(g.as_object())
 
 @api.route("/genos/<geno_id>/info", methods=["GET"])
@@ -128,6 +153,7 @@ def create_new_job():
     job_desc["genotype"] = genotype_id
     job_desc["phenotype"] = phenotype_id
     job_desc["name"] = form_data["job_name"]
+    job_desc["description"] = form_data.get("description", default=None)
     job_desc["response"] =  form_data["response"] 
     if form_data.get("response_invnorm", False):
         job_desc["response_invnorm"] = True
@@ -146,8 +172,11 @@ def create_new_job():
     job_directory =  os.path.join(current_app.config.get("JOB_DATA_FOLDER", "./"), job_id)
 
     job = SlurmJob(job_id, job_directory, current_app.config) 
-    model = job.get_model(job_desc)
-
+    try:
+        model = job.get_model(job_desc)
+    except ValueError as e:
+        raise ApiException("INVALID MODEL REQUEST", details=str(e))
+    # valid model type
     try:
         model.validate_model_spec(job_desc)
     except Exception as e:
@@ -177,7 +206,8 @@ def create_new_job():
         job_desc_file = os.path.join(job_directory, "job.json")
         with open(job_desc_file, "w") as outfile:
             json.dump(job_desc, outfile)
-    except Exception:
+    except Exception as e:
+        print(e)
         raise ApiException("COULD NOT SAVE JOB DESCRIPTION")
     # file has been saved to disc
     try:
@@ -191,8 +221,9 @@ def create_new_job():
     try:
         job_desc["param_hash"] = param_hash
         Job.create(job_id, job_desc)
-    except:
+    except Exception as e:
         shutil.rmtree(job_directory)
+        print(e)
         raise ApiException("COULD NOT SAVE TO DATABASE")
     # everything worked
     return ApiResult({"id": job_id, "url_job": url_for("user.get_job", job_id=job_id)})
@@ -221,7 +252,8 @@ def retire_job(job_id, job=None):
 @check_edit_job
 def update_job(job_id, job=None):
     try:
-        Job.update(job_id, request.values)
+        values = request.values.to_dict(flat=True)
+        Job.update(job_id, values)
         return ApiResult({"updated": True})
     except Exception as e:
         raise ApiException("COULD NOT UPDATE JOB", details=str(e))
@@ -551,15 +583,33 @@ def get_phenotypes():
     return ApiResult(phenos, request=request)
 
 @api.route("/phenos/<pheno_id>", methods=["GET"])
-def get_pheno(pheno_id):
-    p = Phenotype.get(pheno_id, current_app.config)
-    return ApiResult(p.as_object())
+@check_view_pheno
+def get_pheno(pheno_id, pheno=None):
+    return ApiResult(pheno.as_object())
 
 @api.route("/phenos/<pheno_id>", methods=["POST"])
 @check_edit_pheno
 def update_pheno(pheno_id, pheno=None):
     try:
-        Phenotype.update(pheno_id, request.values)
+        values = request.values.to_dict(flat=True)
+        Phenotype.update(pheno_id, values)
+        return ApiResult({"updated": True})
+    except Exception as e:
+        raise ApiException("COULD NOT UPDATE PHENO", details=str(e))
+
+@api.route("/phenos/<pheno_id>/sample-column", methods=["POST"])
+@check_edit_pheno
+def update_pheno_sample_column(pheno_id, pheno=None):
+    try:
+        values = request.values.to_dict(flat=True)
+        latest_geno = next(iter(Genotype.list_all_for_user(current_user.rid)), None)
+        if latest_geno:
+            latest_geno = Genotype.get(latest_geno["id"], current_app.config)
+            known_sample_ids = latest_geno.get_samples()
+        else:
+            known_sample_ids = None
+        pheno.set_sample_id_col(values["column"], known_sample_ids = known_sample_ids,
+            config=current_app.config)
         return ApiResult({"updated": True})
     except Exception as e:
         raise ApiException("COULD NOT UPDATE PHENO", details=str(e))
@@ -751,20 +801,16 @@ def post_pheno():
         meta = pheno_reader.infer_meta( sample_ids = latest_geno.get_samples() )
     else:
         meta = pheno_reader.infer_meta()
-    pheno.meta = meta
-
     line_count = sum(1 for _ in pheno_reader.row_extractor()) 
     meta["records"] = line_count
-    print(pheno_meta_path)
-    with open(pheno_meta_path, "w") as f:
-        json.dump(meta, f, indent=2)
+    pheno.set_meta(meta, current_app.config)
     result = {"id": pheno_id,  \
         "url_model": url_for("user.get_model_build", pheno=pheno_id), \
         "url_view": url_for("user.get_pheno", pheno_id=pheno_id)}
     # check that it's a "valid" phenotype
-    is_usable, usable_error = pheno.check_usable()
+    is_usable, usable_errors = pheno.check_usable()
     if not is_usable:
-        result["error"] = usable_error 
+        result["errors"] = usable_errors
         del result["url_model"]
     return ApiResult(result)
 
@@ -858,10 +904,27 @@ def add_user():
         print(e)
         raise ApiException("COULD NOT ADD USER", details=str(e))
 
+@api.route("/users/<user_id>", methods=["GET"])
+@admin_required
+def get_api_user(user_id):
+    user = User.from_id(user_id).as_object()
+    return ApiResult(user)
+
+@api.route("/users/<user_id>", methods=["POST"])
+@admin_required
+def update_user(user_id):
+    try:
+        values = request.values.to_dict(flat=True)
+        User.update(user_id, values)
+        return ApiResult({"updated": True})
+    except Exception as e:
+        print(e)
+        raise ApiException("COULD NOT UPDATE USER", details=str(e))
+
 @api.route("/genos", methods=["POST"])
 @admin_required
 def add_geno():
-    try: 
+    try:
         values = request.values.to_dict(flat=True)
         result = Genotype.create(values, config=current_app.config)
         result["geno"] = result["geno"].as_object()
@@ -903,7 +966,19 @@ def get_user_counts():
         return ApiResult(results)
     except Exception as e:
         print(e)
-        raise ApiException("COULD COUNT JOBS", details=str(e))
+        raise ApiException("COULD COUNT USERS", details=str(e))
+
+@api.route("/access/counts/<what>", methods=["GET"])
+@admin_required
+def get_access_counts(what=None):
+    try:
+        by = request.args.get("by")
+        filters = request.args.get("filter")
+        results = AccessTracker.counts(what=what, by=by, filters=filters, config=current_app.config)
+        return ApiResult(results)
+    except Exception as e:
+        print(e)
+        raise ApiException("COULD COUNT ACCESS", details=str(e))
 
 @api.route("/phenos/<pheno_id>/purge", methods=["DELETE"])
 @admin_required
@@ -1026,8 +1101,42 @@ def post_useragreement():
 
 @api.route("/notices", methods=["GET"])
 def get_api_notices():
-    notices = Notice.list_current(current_app.config)
+    query = get_query_info(request)
+    notices = Notice.list_current(current_app.config, query)
     return ApiResult(notices)
+
+@api.route("/notices/<notice_id>", methods=["GET"])
+def get_api_notice(notice_id):
+    query = get_query_info(request)
+    notices = Notice.get(notice_id).as_object()
+    return ApiResult(notices)
+
+@api.route("/notices-all", methods=["GET"])
+@admin_required
+def get_api_notices_all():
+    query = get_query_info(request)
+    notices = Notice.list_all(current_app.config, query)
+    return ApiResult(notices)
+
+@api.route("/notices", methods=["POST"])
+@admin_required
+def add_notice():
+    try:
+        values = request.values.to_dict(flat=True)
+        Notice.create(values)
+        return ApiResult({"created": True})
+    except Exception as e:
+        raise ApiException("COULD NOT CREATE NOTICE", details=str(e))
+
+@api.route("/notices/<notice_id>", methods=["POST"])
+@admin_required
+def update_notice(notice_id):
+    try:
+        values = request.values.to_dict(flat=True)
+        Notice.update(notice_id, values)
+        return ApiResult({"updated": True})
+    except Exception as e:
+        raise ApiException("COULD NOT UPDATE NOTICE", details=str(e))
 
 class ApiResult(object):
     def __init__(self, value, status=200, header=None, request=None):

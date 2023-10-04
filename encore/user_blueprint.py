@@ -7,7 +7,7 @@ from .notice import Notice
 from .job import Job 
 from .user import User
 from .access_tracker import AccessTracker
-from .auth import check_view_job, check_edit_job, can_user_edit_job, access_pheno_page, check_edit_pheno, can_user_edit_pheno
+from .auth import check_view_job, check_edit_job, can_user_edit_job, check_view_pheno, check_edit_pheno, can_user_edit_pheno
 
 user_area = Blueprint("user", __name__,
     template_folder="templates")
@@ -21,11 +21,13 @@ def before_request():
 @user_area.route("/")
 def index():
     phenos = Phenotype.list_all_for_user(current_user.rid)
+
     print(current_user.signed_con)
     uid = current_user.rid
     usigncon = current_user.signed_con
-    notices = Notice.list_current()
+    notices = list(Notice.list_current())
     return render_template("home.html", phenos=phenos, notices=notices,uid=uid,usigncon=usigncon)
+
 
 @user_area.route("/jobs", methods=["GET"])
 def get_jobs():
@@ -93,15 +95,14 @@ def get_phenos():
     return render_template("pheno_list.html")
 
 @user_area.route("/phenos/<pheno_id>", methods=["GET"])
-@access_pheno_page
+@check_view_pheno
 def get_pheno(pheno_id, pheno=None):
     pheno_obj = pheno.as_object()
     pheno_obj["overlap"] = calculate_overlaps(pheno)
     if can_user_edit_pheno(current_user, pheno):
         pheno_obj["can_edit"] = True
-    is_usable, usable_error = pheno.check_usable()
-    if not is_usable:
-        pheno_obj["error"] = usable_error
+    if "errors" in pheno_obj and len(pheno_obj["errors"]):
+        pheno_obj["has_errors"] = True
     return render_template("pheno_details.html", pheno=pheno_obj)
 
 @user_area.route("/pheno-upload", methods=["GET"])

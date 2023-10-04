@@ -1,4 +1,3 @@
-import MySQLdb
 from threading import Timer
 from datetime import datetime
 import sys
@@ -6,51 +5,49 @@ import subprocess
 import os
 import datetime
 import pwd
-from .notifier import get_notifier
 from flask import current_app
+from .notifier import get_notifier
+from .job import Job
 
-class Job(object):
+
+class JobRec(object):
     def __init__(self, rid, status):
         self.id = rid
         self.status = status
 
-class DatabaseCredentials(object):
-    def __init__(self, host, user, pw, db):
-        self.host = host
-        self.user = user
-        self.pw = pw
-        self.db = db
-
 class Tracker(object):
 
-    def __init__(self, interval, db_credentials, app):
+    def __init__(self, interval, app):
         self.interval = interval
-        self.credentials = db_credentials
         self.app = app
         self.timer = None
 
-    def query_pending_jobs(self, db):
+    def query_pending_jobs(self):
 
-        sql = ("SELECT bin_to_uuid(jobs.id) AS id, statuses.name AS status FROM jobs "
-               "LEFT JOIN statuses ON statuses.id = jobs.status_id "
-               "WHERE (statuses.name='queued' OR statuses.name='started' or statuses.name='canceling')")
+        joblist = Job.list_all_active()
 
-        cur = db.cursor(MySQLdb.cursors.DictCursor)
-        cur.execute(sql)
         jobs = []
-        for x in range(0, cur.rowcount):
-            row = cur.fetchone()
-            jobs.append(Job(row["id"], row["status"]))
+        for row in joblist:
+            jobs.append(JobRec(row["id"], row["status"]))
         return jobs
 
-    def update_job_status(self, db, job, slurm_status, exit_code):
+    def update_job_status(self, job_id, slurm_status, exit_code, old_status, config):
         status = ""
         reason = ""
+        job = None
+        try:
+            job = Job.get(job_id, config)
+        except Exception as e:
+            print("Error Fetching Job in Tracker")
+            print(e)
         if slurm_status == "RUNNING":
             status = "started"
         elif slurm_status == "CANCELLED by 0":
             status = "failed"
             reason = "Insufficient resource allocation"
+        elif slurm_status == "OUT_OF_MEMORY":
+            status = "failed"
+            reason = "Out of memory"
         elif slurm_status.startswith("CANCELLED"):
             status = "canceled"
         elif slurm_status == "PENDING" or slurm_status == "QUEUED":
@@ -60,28 +57,22 @@ class Tracker(object):
             reason = "Exceeded allocated time"
         elif slurm_status == "PREEMPTED" or slurm_status == "FAILED" or slurm_status == "NODE_FAIL":
             status = "failed"
+            if job:
+                reason = job.get_failure_reason() or ""
         elif slurm_status == "COMPLETED":
             status = "succeeded"
 
         if status:
-            cur = db.cursor(MySQLdb.cursors.DictCursor)
-            if reason:
-                sql = "UPDATE jobs SET status_id = (SELECT id FROM statuses WHERE name=%s LIMIT 1), " +  \
-                    "error_message=%s, " + \
-                    "modified_date = NOW() WHERE id = uuid_to_bin(%s)"
-                cur.execute(sql, (status, reason, job.id))
-            else:
-                sql = "UPDATE jobs SET status_id = (SELECT id FROM statuses WHERE name=%s LIMIT 1), " + \
-                    "modified_date = NOW() WHERE id = uuid_to_bin(%s)"
-                cur.execute(sql, (status, job.id))
-            db.commit()
+            Job.update_status(job_id, status, reason, old_status)
             notifier = get_notifier()
             if notifier:
                 try:
                     if status == "failed":
-                        notifier.send_failed_job(job.id)
+                        job = Job.get(job_id, config)
+                        notifier.send_failed_job(job_id, job)
                 except:
                     pass
+
 
     def update_job_statuses(self, db, jobs):
         sacct = current_app.config.get("SACCT_JOB_BINARY")  #'/usr/cluster/bin/sacct'
@@ -109,19 +100,21 @@ class Tracker(object):
         for slurm_job in slurm_jobs_found.values():
             for j in jobs:
                 if slurm_job[3][5:] == j.id:
-                    self.update_job_status(db, j, slurm_job[1], slurm_job[2])
+                    self.update_job_status(j.id, slurm_job[1], slurm_job[2], j.status, config)
                     jobs_updated += 1
                     break
         return jobs_updated
 
     def routine(self):
         with self.app.app_context():
-            db = MySQLdb.connect(host=self.credentials.host, user=self.credentials.user, passwd=self.credentials.pw, db=self.credentials.db)
-            jobs = self.query_pending_jobs(db)
-            if len(jobs) != 0:
-                return self.update_job_statuses(db, jobs)
-            else:
-                return 0
+            config = current_app.config
+            try:
+                jobs = self.query_pending_jobs()
+                if len(jobs) != 0:
+                    self.update_job_statuses(jobs, config)
+            except Exception as e:
+                print("Tracker Call Back Error")
+                print(e)
 
     def timer_callback(self):
         try:

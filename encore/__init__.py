@@ -5,6 +5,7 @@ from .api_blueprint import api, ApiResult, ApiException
 from .auth_blueprint import auth
 from .notifier import get_notifier
 from . import job_tracking
+import os
 import atexit
 import subprocess
 import markdown
@@ -42,7 +43,9 @@ def create_app(config=None):
     register_helpers(app)
     register_info(app)
 
-    launch_tracker(app)
+    # prevent double init when in debug mode
+    if not "FLASK_RUN_FROM_CLI" in os.environ or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        launch_tracker(app)
 
     return app
 
@@ -75,12 +78,16 @@ def register_helpers(app):
                 return "help"
             elif path.startswith("/feedback"):
                 return "feedback"
+            elif path.startswith("/me/api-token"):
+                return "api"
             elif path.startswith("/admin/user"):
                 return "user"
             elif path.startswith("/admin/phenos"):
                 return "pheno"
             elif path.startswith("/admin/genos"):
                 return "geno"
+            elif path.startswith("/admin/notices"):
+                return "notices"
             elif path.startswith("/admin/counts"):
                 return "counts"
             elif path.startswith("/admin"):
@@ -95,6 +102,7 @@ def register_helpers(app):
                 links["left"].append(("user", "Users", url_for("admin.get_admin_user_page")))
                 links["left"].append(("pheno", "Phenos", url_for("admin.get_admin_pheno_page")))
                 links["left"].append(("geno", "Genos", url_for("admin.get_admin_geno_page")))
+                links["left"].append(("notices", "Notices", url_for("admin.get_admin_notices_page")))
                 links["left"].append(("counts", "Counts", url_for("admin.get_admin_counts_page")))
                 links["right"].append(("return","Return to App", url_for("user.index")))
             else:
@@ -104,6 +112,7 @@ def register_helpers(app):
                 links["left"].append(("collab", "Collaborate", url_for("user.get_collaborators")))
                 if (user is not None) and hasattr(user, "is_admin") and user.is_admin():
                     links["right"].append(("admin","Admin", url_for("admin.get_admin_page")))
+                links["right"].append(("api","API", url_for("user.get_api_token")))
                 links["right"].append(("help","Help", url_for("user.get_help")))
                 links["right"].append(("feedback","FeedBack", url_for("user.get_feedback")))
                 links["right"].append(("wiki","Wiki", 'https://github.com/psnehal/encore/wiki'))
@@ -124,10 +133,7 @@ def register_info(app):
         pass
 
 def launch_tracker(app):
-    job_tracker = job_tracking.Tracker(5*60.0, \
-        job_tracking.DatabaseCredentials("localhost", app.config.get("MYSQL_USER"), 
-        app.config.get("MYSQL_PASSWORD"), app.config.get("MYSQL_DB")),
-        app)
+    job_tracker = job_tracking.Tracker(5*60.0, app)
     job_tracker.start()
     atexit.register(lambda:job_tracker.cancel())
 

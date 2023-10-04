@@ -2,6 +2,7 @@ import subprocess
 import math
 import re
 import csv
+import codecs
 from collections import defaultdict, Counter
 
 # These three functions
@@ -43,10 +44,11 @@ def guess_atomic_column_class(rawtype, obs):
             int_min = min(int_vals)
             int_max = max(int_vals)
             int_range = int_max - int_min
-            all_same_num_digits = math.floor(math.log10(int_min)) == math.floor(math.log10(int_max))
-            bigger_range = math.log10(int_range+1) >  math.log10(n_vals+1) + 2 # 2 order of mag larger
-            if not all_same_num_digits and bigger_range:
-                return {"class": "numeric", "type": rawtype}
+            if int_min > 1:
+                all_same_num_digits = math.floor(math.log10(int_min)) == math.floor(math.log10(int_max))
+                bigger_range = math.log10(int_range+1) >  math.log10(n_vals+1) + 2 # 2 order of mag larger
+                if not all_same_num_digits and bigger_range:
+                    return {"class": "numeric", "type": rawtype}
         return {"class": "id", "type": rawtype}
     if n_uniq_vals == 1:
         return {"class": "fixed", "type": rawtype, "value": next(iter(obs.keys()))}
@@ -56,10 +58,13 @@ def guess_atomic_column_class(rawtype, obs):
             levels.sort(key = lambda x: atof(x))
         return {"class": "binary", "type": rawtype, "levels": levels}
     if rawtype == "str":
-        if float(n_uniq_vals)/n_vals > .75:
-            return {"class": "descr", "type": "str"}
-        else:
+        n_less_than_five_cats = sum((x<5 for x in obs.values()))
+        n_more_than_five_obs = sum((x for x in obs.values() if x>5))
+        max_small_group = max(5, math.floor(.25*n_uniq_vals))
+        if float(n_more_than_five_obs)/n_vals > .80 and n_less_than_five_cats < max_small_group:
             return {"class": "categorical", "type":"str", "levels": list(obs.keys())}
+        else:
+            return {"class": "descr", "type": "str"}
     if rawtype == "float" or rawtype == "int":
         return {"class": "numeric", "type": rawtype}
     return {"class": rawtype, "type": rawtype}
@@ -180,7 +185,7 @@ def check_if_ped(cols, obs):
         return False, None
     return True, None 
 
-def guess_sample_id_col(metas, cols, sample_ids):
+def guess_sample_id_col(metas, cols, known_sample_ids):
     # metas is array (col index) of dict (infered properties) for each column
     # cols is dict (col index) of dict (data type) of counter (values)
     best_match = 25 #min overlap
@@ -199,42 +204,75 @@ def guess_sample_id_col(metas, cols, sample_ids):
                 continue
             if has_dup:
                 continue
-            matches = sum(x in sample_ids for x in vals)
-            if matches > best_match:
-                best_match = matches
+            n_matches = sum(x in known_sample_ids for x in vals)
+            if n_matches > best_match:
+                best_match = n_matches
                 id_col_idx = i
     return id_col_idx
 
-def infer_meta(csvfile, dialect=None, sample_ids=None):
+def verify_sample_id_col(sample_id_col, metas, cols, known_sample_ids):
+    # metas is array (col index) of dict (infered properties) for each column
+    # cols is dict (col index) of dict (data type) of counter (values)
+    error = ""
+    for i in range(len(cols)):
+        meta = metas[i]
+        colinfo = cols[i]
+        if meta["name"] == sample_id_col:
+            mtype = meta["type"]
+            has_dup = colinfo[mtype].most_common(1)[0][1]>1
+            if mtype == "str":
+                vals = (x for x in colinfo["str"])
+            else:
+                vals = (str(x) for x in colinfo[mtype])
+            if has_dup:
+                return None, "Duplicate IDs detected. IDs must be unique"
+            n_matches = sum(x in known_sample_ids for x in vals)
+            if known_sample_ids and n_matches == 0:
+                return None, "No values overlap known IDs in the genotype data"
+            return i, ""
+    return None, "No match for column name"
+
+def infer_meta(filepath, dialect=None, known_sample_ids=None, sample_id_column=None):
     meta = {"layout": {}, "columns": []}
 
-    start_pos = 0
-    csvfile.seek(0)
-    first = csvfile.read(4)
-    if first.startswith("\xfe\xff") or first.startswith("\xff\xfe"):
-        start_pos = 2
-    elif first.startswith("\xef\xbb\xbf"):
-        start_pos = 3
+    with open(filepath, 'rb') as f:
+        first_bytes = f.read(4)
 
-    # store csv dialect
-    if not dialect:
-        csvfile.seek(start_pos)
-        dialect = sniff_file(csvfile)
-    for k in [k for k in dir(dialect) if not k.startswith("_")]:
-        meta["layout"]["csv_" + k] = getattr(dialect, k)
+    # assume utf-8 unless BOM found
+    encoding ='utf-8'
+    for enc, boms in \
+            ('utf-8-sig', (codecs.BOM_UTF8,)), \
+            ('utf-32', (codecs.BOM_UTF32_LE, codecs.BOM_UTF32_BE)), \
+            ('utf-16', (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        if any(first_bytes.startswith(bom) for bom in boms):
+            encoding = enc
+            break
+    meta["encoding"] = encoding
 
-    # read comments 
-    csvfile.seek(start_pos)
-    comments = list(get_comments(csvfile))
+    records = 0
+    with open(filepath, 'r', encoding=encoding) as csvfile:
+        # store csv dialect
+        if not dialect:
+            dialect = sniff_file(csvfile)
+        for k in [k for k in dir(dialect) if not k.startswith("_")]:
+            meta["layout"]["csv_" + k] = getattr(dialect, k)
 
-    # read and process csv rows 
-    csvfile.seek(start_pos)
-    cvr = csv.reader(strip_comments(csvfile), dialect)
-    firstrow = next(cvr)
-    cols = defaultdict(lambda : defaultdict(Counter))
-    for row in cvr:
-        for idx, val in enumerate(row):
-            cols[idx][guess_raw_type(val)][val] += 1
+        # read comments 
+        csvfile.seek(0)
+        comments = list(get_comments(csvfile))
+
+        # read and process csv rows 
+        csvfile.seek(0)
+        cvr = csv.reader(strip_comments(csvfile), dialect)
+        firstrow = next(cvr)
+        cols = defaultdict(lambda : defaultdict(Counter))
+        for row in cvr:
+            if len(row):
+                records += 1
+            for idx, val in enumerate(row):
+                cols[idx][guess_raw_type(val)][val] += 1
+    meta["records"] = records
+
     # find column headers
     if comments:
         lastcomment = next(csv.reader([comments[-1][1:]], dialect))
@@ -264,11 +302,19 @@ def infer_meta(csvfile, dialect=None, sample_ids=None):
         for actas, col in zip(colclasses, meta["columns"][0:3]):
             if col["class"] != "fixed":
                 col["class"] =  actas
-    elif sample_ids:
-        #if not ped, try to find ID column
+    elif sample_id_column:
+        #if ID col specified, verify it's correct
+        sample_id_set = set(known_sample_ids)
+        id_col, id_error = verify_sample_id_col(sample_id_column, meta["columns"], cols, known_sample_ids=sample_id_set)
+        if id_col is not None:
+            meta["columns"][id_col]["class"] = "sample_id"
+        else:
+            meta["id_error"] = id_error
+    elif known_sample_ids:
+        #if not ped and ID col not specified, try to guess ID column
         id_col =  None
-        sample_id_set = set(sample_ids)
-        id_col = guess_sample_id_col(meta["columns"], cols, sample_id_set)
+        sample_id_set = set(known_sample_ids)
+        id_col = guess_sample_id_col(meta["columns"], cols, known_sample_ids=sample_id_set)
         if id_col is not None:
             meta["columns"][id_col]["class"] = "sample_id"
     return meta
@@ -281,9 +327,8 @@ class PhenoReader:
         else:
             self.meta = self.infer_meta()
 
-    def infer_meta(self, sample_ids=None):
-        with open(self.path, 'rU') as csvfile:
-            return infer_meta(csvfile, sample_ids=sample_ids)
+    def infer_meta(self, sample_ids=None, sample_id_column=None):
+        return infer_meta(self.path, known_sample_ids=sample_ids, sample_id_column=sample_id_column)
 
     def get_dialect(self, opts=None):
         class dialect(csv.Dialect):
@@ -308,15 +353,22 @@ class PhenoReader:
         if self.meta and self.meta["columns"]:
             return self.meta["columns"]
         else:
-            return [];
+            return []
 
-    def row_extractor(self):
+    def get_sample_column_index(self):
+        sample_col = next(iter([x for x in self.get_columns() if x["class"]=="sample_id"]), None)
+        if not sample_col:
+            return None
+        return self.get_column_indexes()[sample_col["name"]]
+
+    def row_extractor(self, samples=None):
         dialect = self.get_dialect()
         if "layout" in self.meta and "skip" in self.meta["layout"]:
             skip = self.meta['layout']['skip']
         else:
             skip = 0
-        with open(self.path, 'rU') as csvfile:
+        sample_col_idx = self.get_sample_column_index()
+        with open(self.path, 'r', encoding=self.meta.get("encoding", "utf-8")) as csvfile:
             if not dialect:
                 dialect = sniff_file(csvfile)
                 csvfile.seek(0)
@@ -324,13 +376,14 @@ class PhenoReader:
                 [csvfile.readline() for i in range(skip)]
             cvr = csv.reader((row for row in csvfile if not row.startswith("#")), dialect)
             for row in cvr:
+                if samples and sample_col_idx is not None and row[sample_col_idx] not in samples:
+                    continue
                 yield row
 
     def get_samples(self):
-        sample_col = next(iter([x for x in self.get_columns() if x["class"]=="sample_id"]), None)
-        if not sample_col:
+        sample_col_idx = self.get_sample_column_index()
+        if sample_col_idx is None:
             return
-        sample_col_idx = self.get_column_indexes()[sample_col["name"]]
         for row in self.row_extractor():
             yield row[sample_col_idx]
 

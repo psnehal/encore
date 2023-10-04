@@ -17,6 +17,7 @@
 	
     <script type="text/javascript" src="{{ url_for('static', filename='js/plot.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/job_details.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/form_helper.js') }}"></script>
 	<script type="text/javascript">
 		job_id = "{{ job.job_id }}"
 		job_status = "{{ job.status }}"
@@ -59,6 +60,7 @@
 		.label-edit:hover {color: black; backgroud-color: #c4c4c4; }
 		a.edit-job-modal {text-decoration: none; color:inherit; cursor: pointer}
 		.job-actions button {display: block; padding: 1px 8px; margin: 3px auto; width: 8em;}
+		.no-value {color: #c4c4c4; font-style: italic }
 	</style>
 
 {% endblock %}
@@ -67,6 +69,10 @@
 		<tr>
 			<th>Job Name</th>
 			<td>{{ job.name }}</td>
+		</tr>
+		<tr>
+			<th>Description</th>
+			<td><span class="job-desc">{{ job.description if job.description}}</span></td>
 		</tr>
 		{% if job.details %}
 		{% if job.details.response %}
@@ -99,6 +105,12 @@
 			{{ job.details.genotype.name }} ( {{ job.details.genotype.build }} )</a></td>
 		</tr>
 		{% endif %}
+		{% endif %}
+		{% if job.details.kinship_source %}
+		<tr>
+			<th>Kinship Source</th>
+			<td>{{ job.details.kinship_source_desc or job.details.kinship_source }}</td>
+		</tr>
 		{% endif %}
 		{% if job.details.variant_filter %}
 		<tr>
@@ -225,7 +237,7 @@
         {% endif %}
 
 		{% if job.can_edit %}
-		<div class="modal fade" id="editModal" role="dialog">
+		<div class="modal fade" id="editModalBox" role="dialog">
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
@@ -233,17 +245,22 @@
 						<h4 class="modal-title">Edit Job Details</h4>
 					</div>
 					<div class="modal-body">
+						<div class="alert alert-danger error-message" role="alert" style="display: none"> </div>
 						<form class="form-horizonal">
-						<div class="form-group">
+						<div class="form-group row">
 							<label class="col-sm-2 control-label" for="job_name">Name</label>
-							<div class="col-sm-10"><input type="text" class="form-control" id="job_name"/></div>
+							<div class="col-sm-10"><input type="text" class="form-control" id="job_name" data-bind="name" data-focus="me"/></div>
+						</div>
+						<div class="form-group row">
+							<label class="col-sm-2 control-label" for="message">Description</label>
+							<div class="col-sm-10"><textarea type="text" class="form-control" id="job_desc" data-bind="description" rows="5"></textarea></div>
 						</div>
 						&nbsp;
 						</form>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-						<button type="button" class="btn btn-success edit-job-save" >Save</button>
+						<button type="button" class="btn btn-success modal-action" >Save</button>
 					</div>
 				</div>
 			</div>
