@@ -1,37 +1,43 @@
 /* eslint-env jquery */
 /* eslint no-unused-vars: ["error", { "vars": "local" }] */
 
-function init_editform(pheno_id, pheno_api_url) {
-    var edit_icon = $("<span>", {class: "glyphicon glyphicon-pencil", "aria-hidden": "true"});
-    var $dialog = $("#editModal");
-    var $title = $("#pheno_main_title");
-    $title.append($("<sup>").append($("<span>", {class: "label label-edit"}).append($("<a>", { class:"edit-pheno-modal"}).append(edit_icon))));
-    $dialog.find("form").on("keyup keypress", function(e) {
-        var keyCode = e.keyCode || e.which;
-        if (keyCode === 13) { 
-            e.preventDefault();
-            return false;
+function EditableElement(ele, useSup) {
+    var edit_icon = $("<span>", {class: "label label-edit"})
+        .append($("<a>", {class: "edit-pheno-modal"})
+        .append($("<span>", {class: "glyphicon glyphicon-pencil", "aria-hidden": "true"})));
+    $(ele).wrapInner($("<span>", {class: "current-value"}));
+    if (useSup) {
+        edit_icon = edit_icon.wrap($("<sup>")).parent();
+    }
+    $(ele).append(edit_icon);
+    $value = $(ele).find(".current-value")
+
+    this.setText = function(text) {
+        if (text) {
+            $value.text(text).removeClass("no-value")
+        } else {
+            $value.text("None").addClass("no-value")
         }
-    });
+    }
+    this.setText($value.text())
+}
+
+function init_editform(pheno_id, pheno_api_url) {
+    var titleBox = new EditableElement("#pheno_main_title", true);
+    var descBox = new EditableElement(".pheno-desc");
+    var edit_form = new FormHelper("#editModalBox", "Phenotype");
+
     $("a.edit-pheno-modal").click(function(evt) {
         evt.preventDefault();
-        $.getJSON(pheno_api_url).then(function(resp) {
-            $dialog.find("#pheno_name").val(resp.name);
-            $dialog.on("shown.bs.modal", function() {
-                $dialog.find("#pheno_name").focus();
-            });
-            $dialog.modal();
-        });
-    });
-    $("button.edit-pheno-save").click(function(evt) {
-        evt.preventDefault();
-        var new_name = $dialog.find("#pheno_name").val();
-        $.post(pheno_api_url, {"name": new_name}).done( function() {
-            $title.contents().first().replaceWith(new_name);
-            $dialog.modal("hide");
-        }).fail(function() {
-            alert("Update failed");
-        });
+        $.get(pheno_api_url).done(function(current_data) {
+            var form_values = {name: current_data.name, description: current_data.description}
+            edit_form.show_update_form(form_values, (new_values) => {
+                return postFormData(pheno_api_url, new_values).then( () => {
+                    titleBox.setText(new_values.name)
+                    descBox.setText(new_values.description)
+                });
+            })
+        })
     });
 }
 
@@ -44,7 +50,7 @@ function init_new_job_button(selector, pheno_error) {
             document.location = url;
         });
     } else {
-        $(selector).prop("title", pheno_error)
+        $(selector).prop("title", "See errors on page")
             .prop("disabled", true);
     }
 }
@@ -73,3 +79,24 @@ function init_pheno_delete_button(selector) {
     });
 }
 
+function init_sampleidform(pheno_id, pheno_api_url, pheno_sample_col_url) {
+    var edit_form = new FormHelper("#setSampleIdModal", "Phenotype");
+    var holder = $("#set_sample_id_form");
+    if (!holder) {return;}
+    var button = document.createElement("button");
+    button.innerText = "Choose Column";
+    button.classList.add("btn");
+    button.classList.add("btn-primary");
+    holder.append(button);
+    $(button).click(function(evt) {
+        evt.preventDefault();
+        $.get(pheno_api_url).done(function(current_data) {
+            var form_values = {column: ""};
+            edit_form.show_update_form(form_values, (new_values) => {
+                return postFormData(pheno_sample_col_url, new_values).then( () => {
+                    document.location.reload();
+                });
+            })
+        })
+    });
+}

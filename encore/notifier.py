@@ -28,7 +28,6 @@ class Notifier:
             "\n"
         subject = "Encore User help ({})".format(user_fullname)
         self.send_mail(to_address, subject, message, {"reply-to": user_email})
-
         #user_email, user_fullname, from_page,current_user,message, message2,Q1,Q2,Q3,Q4
 
     def send_user_feedback2(self, user_email, user_fullname, from_page, user,message3,message2,Q1,Q2,Q3,Q4):
@@ -62,14 +61,16 @@ class Notifier:
         subject = "Encore User Agrrement ({})".format(user_id)
         self.send_feedback_mail(to_address, subject, message, {"reply-to": ''})
 
-    def send_failed_job(self, job_id="11111111-1111"):
-        to_address = self.help_email 
+    def send_failed_job(self, job_id="11111111-1111",job=None):
+        to_address = self.help_email
         subject = "Encore Failed Job ({})".format(job_id[:8])
         message = "The following job has failed:\n\n{}".format(job_id)
         try:
+            if job is None:
+                job = Job.get(job_id, current_app.config)
             message += "\n\n" + url_for("user.get_job", job_id=job_id)
-            job = Job.get(job_id, current_app.config)
             message += "\n\nName:{} ".format(job.name)
+            message += "\n\nReason:{} ".format(job.error_message or "-unknown-")
             owner = job.get_owner()
             message += "\n\nUser:{} ".format(owner.email)
         except:

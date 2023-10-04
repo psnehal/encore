@@ -71,8 +71,8 @@ class User(UserMixin):
             WhereExpression("job_users.user_id != %s", (self.rid,))
         )
         cols = User.__default_cols()
-        group_by = list(cols.keys())
-        cols["count"] = "count(*)"
+        group_by = [str(i+1) for i, x in enumerate(cols)]
+        cols["count"] = "count(job_users.job_id)"
         qcols = User.__default_qcols()
         sqlcmd = User.__build_sql_command(cols, qcols, where, query)
         sqlcmd.set_group_by(group_by)
@@ -221,8 +221,6 @@ class User(UserMixin):
 
     @staticmethod
     def create(new_values, db=None):
-        if "can_analyze" in new_values:
-            new_values["can_analyze"] = new_values["can_analyze"]=="true"
         updateable_fields = [x for x in User.__dbfields if x != "id"]
         fields = list(new_values.keys()) 
         values = list(new_values.values())
@@ -257,6 +255,22 @@ class User(UserMixin):
         new_id = cur.lastrowid
         new_user = User.from_id(new_id, db=db)
         return new_user
+
+
+    def update(user_id, new_values):
+        updateable_fields = [x for x in User.__dbfields if x != "id"]
+        fields = list(new_values.keys())
+        values = [None if x=="" else x for x in new_values.values()]
+        bad_fields = [x for x in fields if x not in updateable_fields]
+        if len(bad_fields)>0:
+            raise Exception("Invalid update field: {}".format(", ".join(bad_fields)))
+        sql = "UPDATE users SET "+ \
+            ", ".join(("{}=%s".format(k) for k in fields)) + \
+            " WHERE id = %s"
+        db = sql_pool.get_conn()
+        cur = db.cursor()
+        cur.execute(sql, values + [int(user_id)])
+        db.commit()
 
 
     def as_object(self):

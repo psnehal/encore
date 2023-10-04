@@ -100,6 +100,16 @@
 			$box.modal();
 		}
 
+		function showModelErrors(modelErrors) {
+			if (modelErrors.length < 1) {return;}
+			var $box = $("#errorModal");
+			var list = $("<ul></ul>").append(modelErrors.map(function(x) {
+				return $("<li></li>").append(x)
+			}));
+			$box.find(".err-list").empty().append(list);
+			$box.modal();
+		}
+
 		function submitModel(e) {
 			e.preventDefault();
 			var form = $("#model-form");
@@ -107,12 +117,7 @@
 			button.disable()
 			var formErrors = validateForm(form);
 			if (formErrors.length) {
-				var $box = $("#errorModal");
-				var list = $("<ul></ul>").append(formErrors.map(function(x) {
-					return $("<li></li>").append(x)
-				}));
-				$box.find(".err-list").empty().append(list);
-				$box.modal();
+				showModelErrors(formErrors)
 				button.enable();
 				return false;
 			}
@@ -139,10 +144,13 @@
 					try {
 						resp = JSON.parse(xhr.responseText);
 						message = resp.error;
+						if (resp.details) {
+							message += ": " + resp.details;
+						}
 					} catch (ex) {
 						message = xhr.responseText || xhr.statusText;
 					}
-					alert(message);
+					showModelErrors([ message ]);
 				}
 				button.enable();
 			}.bind(this), false);
@@ -409,6 +417,9 @@
 				genophenoSelect.val("").trigger("change");
 			});
 			var d1 = $.getJSON("{{url_for('api.get_genotypes')}}").then(function(resp) {
+				if (resp.header) {
+					resp = resp.data;
+				}
 				var genos = [];
 				resp.forEach(function(g) {
 					genos.push({id: g.id, text: g.name});

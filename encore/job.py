@@ -12,7 +12,8 @@ from .model_factory import ModelFactory
 from .db_helpers import SelectQuery, TableJoin, PagedResult, OrderClause, OrderExpression, WhereExpression, WhereAll
 
 class Job:
-    __dbfields = ["user_id","name","error_message","status_id","creation_date","modified_date", "is_active"]
+    __dbfields = ["user_id", "name", "description", "error_message", "status_id",
+        "creation_date", "modified_date", "is_active"]
     __extfields = ["status", "role"]
 
     def __init__(self, job_id, meta=None, config=None):
@@ -85,6 +86,12 @@ class Job:
     def get_param_hash(self):
         return Job.calc_param_hash(self.meta)
 
+    def get_failure_reason(self, config = None):
+        model = self.get_model(config)
+        if model:
+            return model.get_failure_reason()
+        return None
+
     def as_object(self):
         obj = {key: getattr(self, key) for key in self.__dbfields  + self.__extfields if hasattr(self, key)} 
         obj["job_id"] = self.job_id
@@ -119,7 +126,7 @@ class Job:
         sql = """
             SELECT
               bin_to_uuid(jobs.id) AS id,
-              jobs.name AS name, jobs.user_id as user_id,
+              jobs.name AS name, jobs.description as description, jobs.user_id as user_id,
               jobs.status_id as status_id, statuses.name AS status,
               jobs.error_message AS error_message,
               DATE_FORMAT(jobs.creation_date, '%%Y-%%m-%%d %%H:%%i:%%s') AS creation_date,
@@ -217,9 +224,12 @@ class Job:
         return results 
 
     @staticmethod
-    def list_pending(config=None):
+    def list_all_active(config=None):
         db = sql_pool.get_conn()
-        results = Job.__list_by_sql_where(db, "(statuses.name='queued' OR statuses.name='started')")
+        results = Job.__list_by_sql_where(db, ("("
+            "statuses.name='queued' OR "
+            "statuses.name='started' OR "
+            "statuses.name='canceling')"))
         return results
 
     @staticmethod
@@ -239,6 +249,7 @@ class Job:
     def __list_by_sql_where_query(db, where=None, query=None):
         cols = OrderedDict([("id", "bin_to_uuid(jobs.id)"),
             ("name", "jobs.name"),
+            ("description", "jobs.description"),
             ("status", "statuses.name"),
             ("geno_id", "bin_to_uuid(jobs.geno_id)"),
             ("pheno_id", "bin_to_uuid(jobs.pheno_id)"),
@@ -288,10 +299,10 @@ class Job:
         db = sql_pool.get_conn()
         cur = db.cursor()
         cur.execute("""
-            INSERT INTO jobs (id, name, user_id, geno_id, pheno_id, param_hash, status_id)
-            VALUES (uuid_to_bin(%s), %s, %s, uuid_to_bin(%s), uuid_to_bin(%s), %s,
+            INSERT INTO jobs (id, name, description, user_id, geno_id, pheno_id, param_hash, status_id)
+            VALUES (uuid_to_bin(%s), %s, %s, %s, uuid_to_bin(%s), uuid_to_bin(%s), %s,
             (SELECT id FROM statuses WHERE name = 'queued'))
-            """, (job_id, values["name"], values["user_id"], values["genotype"],
+            """, (job_id, values["name"], values["description"], values["user_id"], values["genotype"],
             values["phenotype"], values["param_hash"]))
         cur.execute("""
             INSERT INTO job_users(job_id, user_id, created_by, role_id)
@@ -299,17 +310,45 @@ class Job:
             """, (job_id, values["user_id"], values["user_id"]))
         db.commit()
 
+
+    @staticmethod
+    def update_status(job_id, new_status, error_message=None, old_status=None):
+        update_fields = [
+            "status_id = (SELECT id FROM statuses WHERE name=%s LIMIT 1)",
+            "modified_date = NOW()"
+        ]
+        update_values = [new_status]
+        if error_message is not None:
+            if error_message != "":
+                update_fields.append("error_message = %s")
+                update_values.append(error_message)
+            else:
+                update_fields.append("error_message = NULL")
+        where_fields = ["id = uuid_to_bin(%s)"]
+        where_values = [job_id]
+        if old_status is not None:
+            where_fields.append("status_id = (SELECT id FROM statuses WHERE name=%s LIMIT 1)")
+            where_values.append(old_status)
+        sql = "UPDATE jobs"
+        sql += " SET " + ", ".join(update_fields)
+        sql += " WHERE " + " AND ".join(where_fields)
+        values = update_values + where_values
+        db = sql_pool.get_conn()
+        cur = db.cursor()
+        cur.execute(sql, values)
+        db.commit()
+
     @staticmethod
     def update(job_id, new_values):
-        updateable_fields = ["name"]
+        updateable_fields = ["name", "description"]
         fields = list(new_values.keys()) 
-        values = list(new_values.values())
+        values = [None if x=="" else x for x in new_values.values()]
         bad_fields = [x for x in fields if x not in updateable_fields]
         if len(bad_fields)>0:
             raise Exception("Invalid update field: {}".format(", ".join(bad_fields)))
         sql = "UPDATE jobs SET "+ \
             ", ".join(("{}=%s".format(k) for k in fields)) + \
-            "WHERE id = uuid_to_bin(%s)"
+            " WHERE id = uuid_to_bin(%s)"
         db = sql_pool.get_conn()
         cur = db.cursor()
         cur.execute(sql, values + [job_id])

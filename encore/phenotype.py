@@ -8,17 +8,26 @@ from .pheno_reader import PhenoReader
 from .db_helpers import SelectQuery, TableJoin, PagedResult, OrderClause, OrderExpression, WhereExpression, WhereAll
 
 class Phenotype:
-    __dbfields = ["name","orig_file_name","md5sum","user_id","creation_date", "is_active"]
+    __dbfields = ["name", "description", "orig_file_name", "md5sum",
+        "user_id", "creation_date", "is_active"]
 
     def __init__(self, pheno_id, meta=None):
         self.pheno_id = pheno_id
         self.name = None
+        self.description = None
         self.orig_file_name = None
         self.md5sum = None
         self.user_id = None
         self.creation_date = None
         self.root_path = "" 
         self.meta = meta
+
+    def set_meta(self, meta, config):
+        self.meta = meta
+        pheno_folder = os.path.join(config.get("PHENO_DATA_FOLDER", "./"), self.pheno_id)
+        meta_path = os.path.expanduser(os.path.join(pheno_folder, "meta.json"))
+        with open(meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
        
     def get_raw_path(self):
         return self.relative_path("pheno_updated.txt")
@@ -41,20 +50,48 @@ class Phenotype:
         covar = self.__get_column(covar_name)
         return covar.get("levels", [])
 
-    def check_usable(self):
-        print(self.meta.get("columns", []))
+
+    def check_has_id_col(self):
         sample_id_col = [x for x in self.meta.get("columns", []) if x.get("class", "")=="sample_id"]
         print(sample_id_col)
         if len(sample_id_col) != 1:
-            return False, "Unable to find sample ID column"
-        return True, ""
+            return False
+        return True
+
+    def check_usable(self):
+        errors = []
+        if not self.check_has_id_col():
+            errors.append({
+                "type": "no_sample_id_col",
+                "desc": "Unable to find sample ID column"})
+        return len(errors)==0, errors
+
+    def get_kinship_path(self, geno_id, must_exist=True):
+        kinship = self.meta.get("kinship", None)
+        if kinship:
+            kinship_path = kinship.get(geno_id, None)
+            if kinship_path:
+                kinship_path = self.relative_path(kinship_path)
+                if not must_exist or os.path.exists(kinship_path):
+                    return kinship_path
+        return None
+
+    def set_sample_id_col(self, column, known_sample_ids = None, config=None):
+        pr = self.get_pheno_reader()
+        meta = pr.infer_meta(sample_ids = known_sample_ids, sample_id_column = column)
+        if "id_error" in meta:
+            raise Exception(meta["id_error"])
+        else:
+            self.set_meta(meta, config=config)
+
 
     def as_object(self):
         obj = {key: getattr(self, key) for key in self.__dbfields if hasattr(self, key)}
         print(self.pheno_id)
         obj["pheno_id"] = self.pheno_id
         obj["meta"] = self.meta
-        obj["is_usable"], obj["usable_result"] = self.check_usable()
+        obj["has_sample_id_col"] = self.check_has_id_col()
+        obj["is_usable"], obj["errors"] = self.check_usable()
         return obj
 
     def __get_column(self, covar_name):
@@ -119,6 +156,7 @@ class Phenotype:
     def __list_by_sql_where_query(db, where=None, query=None):
         cols = OrderedDict([("id", "bin_to_uuid(phenotypes.id)"),
             ("name", "phenotypes.name"),
+            ("description", "phenotypes.description"),
             ("user_email", "users.email"),
             ("user_id", "phenotypes.user_id"),
             ("orig_file_name", "phenotypes.orig_file_name"),
@@ -140,15 +178,15 @@ class Phenotype:
         return PagedResult.execute_select(db, sqlcmd)
 
     @staticmethod
-    def add(values):
-        if "id" in values:
-            pheno_id = values["id"]
-            del values["id"]
+    def add(new_values):
+        if "id" in new_values:
+            pheno_id = new_values["id"]
+            del new_values["id"]
         else:
             raise Exception("Missing required field: id")
         updateable_fields = ["name", "user_id", "orig_file_name", "md5sum"]
-        fields = list(values.keys()) 
-        values = list(values.values())
+        fields = list(new_values.keys())
+        values = [None if x=="" else x for x in new_values.values()]
         bad_fields = [x for x in fields if x not in updateable_fields]
         if len(bad_fields)>0:
             raise Exception("Invalid field: {}".format(", ".join(bad_fields)))
@@ -162,15 +200,15 @@ class Phenotype:
 
     @staticmethod
     def update(pheno_id, new_values):
-        updateable_fields = ["name"]
+        updateable_fields = ["name", "description"]
         fields = list(new_values.keys()) 
-        values = list(new_values.values())
+        values = [None if x=="" else x for x in new_values.values()]
         bad_fields = [x for x in fields if x not in updateable_fields]
         if len(bad_fields)>0:
             raise Exception("Invalid update field: {}".format(", ".join(bad_fields)))
         sql = "UPDATE phenotypes SET "+ \
             ", ".join(("{}=%s".format(k) for k in fields)) + \
-            "WHERE id = uuid_to_bin(%s)"
+            " WHERE id = uuid_to_bin(%s)"
         db = sql_pool.get_conn()
         cur = db.cursor()
         cur.execute(sql, values + [pheno_id])
