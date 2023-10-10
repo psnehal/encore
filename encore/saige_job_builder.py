@@ -59,7 +59,9 @@ class SaigeModel(BaseModel):
         if len(covars)>0:
             cmd += " COVAR={}".format(",".join(covars))
         cmd += " " + " ".join(self.get_opts(model_spec, geno))
-        cmd += " clean"
+        cmd += "{}{}".format("\n" ,binary) + \
+               " REFFILE={}".format(geno.get_build_ref_path())+ \
+               " clean"
 
         return [cmd]
 
