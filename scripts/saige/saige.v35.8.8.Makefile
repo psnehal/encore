@@ -13,6 +13,7 @@ OUTDIR = ./
 OUTNAME = results.txt.gz
 LOGNAME = saige.log
 
+VCFFIELD = DS
 PLINKFILE = plink.bed
 SAVFILE = chr1.sav
 SAMPLEFILE = samples.txt
@@ -65,6 +66,7 @@ $(OUTDIR)step1.rda:
 $(OUTDIR)step2.bin.%.txt: $(OUTDIR)step1.rda
 	$(RSCRIPT) $(STEP2SCRIPT) \
 		--savFile=$(SAVFILE) \
+		--vcfField=$(VCFFIELD) \
 		--sepchr \
 		--chrom=$(word 1, $(subst ., ,$*)) \
 		--start=$(word 2, $(subst ., ,$*)) \
