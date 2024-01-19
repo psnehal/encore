@@ -41,6 +41,14 @@ class SaigeModel(BaseModel):
     def get_analysis_commands(self, model_spec, geno, pheno, ped):
         pipeline = model_spec.get("pipeline_version", "saige-0.26")
         binary = self.app_config.get("SAIGE_BINARY", None)
+        genoName = geno.as_object()['name']
+        if(genoName == 'lossoffunction6'):
+            vcfField = 'GT'
+            print(vcfField)
+        else:
+            vcfField = 'DS'
+
+
         if isinstance(binary, dict):
             binary = binary.get(pipeline, None)
         if not binary:
@@ -49,6 +57,7 @@ class SaigeModel(BaseModel):
             " -j{} ".format(self.cores_per_job) + \
             " THREADS={}".format(self.cores_per_job) + \
             " SAVFILE={}".format(geno.get_sav_path(1)) + \
+            " VCFFIELD={}".format(vcfField) + \
             " PHENOFILE={}".format(ped.get("path")) +  \
             " REFFILE={}".format(geno.get_build_ref_path())+ \
             " PLINKFILE={}".format(geno.get_pca_genotypes_path()) + \

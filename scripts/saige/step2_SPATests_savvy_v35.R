@@ -9,6 +9,8 @@ get_options <- function() {
 		help="path to savvy index file. Indexed by tabix"),
       make_option("--sepchr", action="store_true", default=FALSE,
         help="set if chromosomes are located in different input files"),
+	  make_option("--vcfField", type="character", default="",
+	    help="VCFFiled"),
 	  make_option("--chrom", type="character",default="0",
 		help="chromosome in file to be tested. If not specified, all markers in the file will be tested"),
 	  make_option("--start", type="integer", default=0L,
