@@ -40,7 +40,16 @@ class SaigeModel(BaseModel):
 
     def get_analysis_commands(self, model_spec, geno, ped):
         pipeline = model_spec.get("pipeline_version", "saige-0.26")
-        binary = self.app_config.get("SAIGE_BINARY", None)
+
+        genoName = geno.as_object()['name']
+        if(genoName == 'lossoffunction6'):
+            vcfField = 'GT'
+            binary = self.app_config.get("SAIGE_BINARY_MOD", None)
+            print(vcfField)
+        else:
+            vcfField = 'DS'
+            binary = self.app_config.get("SAIGE_BINARY", None)
+
         if isinstance(binary, dict):
             binary = binary.get(pipeline, None)
         if not binary:
