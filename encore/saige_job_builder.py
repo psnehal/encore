@@ -58,6 +58,7 @@ class SaigeModel(BaseModel):
             " -j{} ".format(self.cores_per_job) + \
             " THREADS={}".format(self.cores_per_job) + \
             " SAVFILE={}".format(geno.get_sav_path(1)) + \
+            " VCFFIELD={}".format(vcfField) + \
             " PHENOFILE={}".format(ped.get("path")) +  \
             " REFFILE={}".format(geno.get_build_ref_path())+ \
             " PLINKFILE={}".format(geno.get_pca_genotypes_path()) + \
