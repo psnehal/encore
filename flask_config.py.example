@@ -12,6 +12,8 @@ DEFAULT_CONFIG = {
     'PHENO_DATA_FOLDER': './',
     'GENO_DATA_FOLDER': './',
     'EPACTS_BINARY': 'epacts',
+    'SAIGE_BINARY': 'saige',
+    'SAIGE_BINARY_MOD':'saige.v35.8.8.v2.Makefile',
     'QUEUE_JOB_BINARY': 'sbatch',
     'SQUEUE_JOB_BINARY': '/usr/cluster/bin/squeue',
     'CANCEL_JOB_BINARY': 'scancel',
