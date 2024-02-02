@@ -83,6 +83,7 @@ $(OUTDIR)step2.bin.%.txt: $(OUTDIR)step1.rda
 $(OUTDIR)step2.bin.%.txt: $(OUTDIR)step1.rda
 	$(RSCRIPT) $(STEP2SCRIPT) \
 		--savFile=$(SAVFILE) \
+		--vcfField=$(VCFFIELD)\
 		--sepchr \
 		--chrom=$(word 1, $(subst ., ,$*)) \
 		--start=$(word 2, $(subst ., ,$*)) \
