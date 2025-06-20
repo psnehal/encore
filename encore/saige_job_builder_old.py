@@ -5,7 +5,7 @@ import os
 from .chunk_progress import get_chr_chunk_progress
 
 
-class SaigeModel(BaseModel):
+class SaigeModelOld(BaseModel):
     filters = [("min-mac-20", "MAC > 20"),
         ("min-maf-001", "MAF > 0.1%"),
         ("min-maf-001-mac-20","MAF > 0.1% AND MAC > 20")]
@@ -15,71 +15,54 @@ class SaigeModel(BaseModel):
         self.cores_per_job = 56
 
     def get_opts(self, model, geno):
-     opts = {}
-     if model.get("response_invnorm", False):
-         opts['inv_norm']= 'true'
-     if model.get("variant_filter", False):
-         vf = model.get("variant_filter")
-         if vf == "min-maf-001-mac-20":
-             opts['min_mac']=20
-             opts['min_maf']= 0.001
-         elif vf == "min-maf-001":
-             #opts.append("STEP2OPT='--minMAF 0.001 --IsOutputAFinCaseCtrl=FALSE'")
-             opts['min_maf']= 0.001
-         elif vf == "min-mac-20":
-             opts['min_mac']= 20
-
-         else:
-             raise Exception("Unrecognized variant filter ({})".format(vf))
-
-     region_value = model.get("region", None)
-
-     if region_value is None:
-         contigval = self.returnContigs("all")
-         opts['contigs']=contigval
-     else:
-         region = model.get("region")
-         print("region",region)
-         if region.startswith("CHR"):
-             region = region[3:]
-         #opts.append("region=".format(region))
-         contigval = self.returnContigs(region)
-         opts['contigs']=contigval
-         opts['region_size']=5000000
-     opts['region_size']=10000000
-     # elif geno.get_chromosomes():
-     #     opts.append("CHRS='{}'".format(geno.get_chromosomes()))
-     return opts
-
+        opts = []
+        if model.get("response_invnorm", False):
+            opts.append("INVNORM=TRUE")
+        if model.get("variant_filter", False):
+            vf = model.get("variant_filter")
+            if vf == "min-maf-001-mac-20":
+                opts.append("STEP2OPT='--minMAF 0.001 --minMAC 20 --IsOutputAFinCaseCtrl=FALSE'")
+            elif vf == "min-maf-001":
+                opts.append("STEP2OPT='--minMAF 0.001 --IsOutputAFinCaseCtrl=FALSE'")
+            elif vf == "min-mac-20":
+                opts.append("STEP2OPT='--minMAC 20 --IsOutputAFinCaseCtrl=FALSE'")
+            else:
+                raise Exception("Unrecognized variant filter ({})".format(vf))
+        if model.get("region", None):
+            region = model.get("region").upper()
+            if region.startswith("CHR"):
+                region = region[3:]
+            opts.append("CHRS={}".format(region))
+            opts.append("BINSIZE={}".format(100000))
+        elif geno.get_chromosomes():
+            opts.append("CHRS='{}'".format(geno.get_chromosomes()))
+        return opts 
 
     def get_analysis_commands(self, model_spec, geno, ped):
-        pipeline = self.app_config["SAVANT_SIF_FILE"][0]
-        binary = self.app_config["SAIGE_BINARY"]
+        pipeline = model_spec.get("pipeline_version", "saige-0.26")
+        binary = self.app_config.get("SAIGE_BINARY", None)
         if isinstance(binary, dict):
             binary = binary.get(pipeline, None)
         if not binary:
             raise Exception("Unable to find SAIGE binary (pipeline: {})".format(pipeline))
-        if isinstance(binary, tuple):
-                    binary = binary[0]
-        cmd = "singularity exec -B /net/wonderland:/net/wonderland:ro  -B /net/dumbo:/net/dumbo {} ".format(pipeline) + \
-                      " snakemake --snakefile {}".format(binary)+ \
-                      " -j ${SLURM_CPUS_PER_TASK}"
-        optlist = self.get_opts(model_spec, geno)
-        optlist["post_processing_script_dir"]=self.app_config["POST_PROCESSING_SCRIPT"]
-        optlist["gene_annotation_bed"]=self.app_config["NEAREST_GENE_BED"]
-        optlist["input_vcf_expression"]= geno.get_sav_path(1).replace("chr1", "{chrom}")
-        optlist["pheno_file"]= ped.get("path")
-
-        resplist = ped.get("response")
-        optlist['response']=resplist
+        cmd = "{}".format(binary) + \
+            " -j{} ".format(self.cores_per_job) + \
+            " THREADS={}".format(self.cores_per_job) + \
+            " SAVFILE={}".format(geno.get_sav_path(1)) + \
+            " PHENOFILE={}".format(ped.get("path")) +  \
+            " REFFILE={}".format(geno.get_build_ref_path())+ \
+            " PLINKFILE={}".format(geno.get_pca_genotypes_path()) + \
+            " SAMPLEFILE={}".format(geno.get_samples_path()) 
+        for resp in ped.get("response"):
+            cmd += " RESPONSE={}".format(resp)
         covars = ped.get("covars")
         if len(covars)>0:
-            optlist['covariates']=covars
-        confilepath = self.relative_path("config.yml")
-        with open(confilepath, 'w') as file:
-            documents = yaml.dump(optlist, file)
+            cmd += " COVAR={}".format(",".join(covars))
+        cmd += " " + " ".join(self.get_opts(model_spec, geno))
+        cmd += "{}{}".format("\n" ,binary) + \
+            " REFFILE={}".format(geno.get_build_ref_path())+ \
+            " clean"
         return [cmd]
-
 
     def get_postprocessing_commands(self, geno, result_file="./results.txt.gz"):
         cmds = []
@@ -128,7 +111,7 @@ class SaigeModel(BaseModel):
 
     def get_progress(self):
         output_file_glob = self.relative_path("step2.bin.*.txt")
-        fre = r'step2\.bin\.(?P<chr>\w+)\.txt$'
+        fre = r'step2\.bin\.(?P<chr>\w+)\.(?P<start>\d+)\.(?P<stop>\d+)\.txt$'
         resp = get_chr_chunk_progress(output_file_glob, fre)
         return resp
 
@@ -157,22 +140,21 @@ class SaigeModel(BaseModel):
                     return "Matrix is singular or not positive definite"
         return None
         
-class LinearSaigeModel(SaigeModel):
+class LinearSaigeModelOld(SaigeModel):
     model_code = "saige-qt"
     model_name = "Saige Linear Mixed Model"
     model_desc = "Fast linear mixed model with kinship adjustment"
     depends = ["sav", "snps"]
 
     def __init__(self, working_directory, config):
-        SaigeModel.__init__(self, working_directory, config) 
+        SaigeModelOld.__init__(self, working_directory, config)
 
     def get_opts(self, model, geno):
         opts = super(self.__class__, self).get_opts(model, geno) 
-        #opts += ["RESPONSETYPE=quantitative"]
-        opts["model"]=self.model_code
+        opts += ["RESPONSETYPE=quantitative"] 
         return opts
 
-class BinarySaigeModel(SaigeModel):
+class BinarySaigeModelOld(SaigeModelOld):
     model_code = "saige-bin"
     model_name = "Saige Logistic Mixed Model"
     model_desc = "Fast logistic regression model with kinship adjustment"
@@ -180,13 +162,11 @@ class BinarySaigeModel(SaigeModel):
     response_class = "binary"
 
     def __init__(self, working_directory, config):
-        SaigeModel.__init__(self, working_directory, config)
+        SaigeModelOld.__init__(self, working_directory, config)
 
     def get_opts(self, model, geno):
         opts = super(self.__class__, self).get_opts(model, geno) 
-        #opts += ["RESPONSETYPE=binary"]
-        opts["logit"]='true'
-        opts["model"]='savant-lm'
+        opts += ["RESPONSETYPE=binary"] 
         return opts
 
     def validate_model_spec(self, model_spec):
