@@ -1,5 +1,6 @@
 from .epacts_job_builder import LMEpactsModel, LMMEpactsModel, SkatOEpactsModel, MMSkatOEpactsModel, MMVTEpactsModel, MMSkatEpactsModel, MMCMCEpactsModel
 from .saige_job_builder import LinearSaigeModel, BinarySaigeModel
+from .saige_job_builder_old import LinearSaigeModelOld, BinarySaigeModelOld
 
 class ModelFactory:
     __models = []
@@ -43,6 +44,8 @@ class ModelFactory:
 #ModelFactory.register(MMSkatOEpactsModel)
 ModelFactory.register(LinearSaigeModel)
 ModelFactory.register(BinarySaigeModel)
+ModelFactory.register(LinearSaigeModelOld)
+ModelFactory.register(BinarySaigeModelOld)
 #ModelFactory.register(MMSkatEpactsModel)
 #ModelFactory.register(MMVTEpactsModel)
 #ModelFactory.register(MMCMCEpactsModel)
