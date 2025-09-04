@@ -44,8 +44,7 @@ class ModelFactory:
 #ModelFactory.register(MMSkatOEpactsModel)
 ModelFactory.register(LinearSaigeModel)
 ModelFactory.register(BinarySaigeModel)
-ModelFactory.register(LinearSaigeModelOld)
-ModelFactory.register(BinarySaigeModelOld)
+
 #ModelFactory.register(MMSkatEpactsModel)
 #ModelFactory.register(MMVTEpactsModel)
 #ModelFactory.register(MMCMCEpactsModel)

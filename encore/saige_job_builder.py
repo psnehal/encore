@@ -3,6 +3,7 @@ from .base_model import BaseModel
 from .ped_writer import PedWriter
 import os
 from .chunk_progress import get_chr_chunk_progress
+import yaml
 
 
 class SaigeModel(BaseModel):
@@ -15,7 +16,7 @@ class SaigeModel(BaseModel):
         self.cores_per_job = 56
 
     def get_opts(self, model, geno):
-        opts = []
+        opts = {}
         if model.get("response_invnorm", False):
              opts['inv_norm']= 'true'
         if model.get("variant_filter", False):
@@ -33,14 +34,22 @@ class SaigeModel(BaseModel):
                 raise Exception("Unrecognized variant filter ({})".format(vf))
 
         opts['region_size']=10000000
+        if model.get("region", None):
+
+                    region = model.get("region").upper()
+                    print("reiong", region)
+                    if region.startswith("CHR"):
+                        region = region[3:]
+                    opts["CHRS"] = region
+
         # elif geno.get_chromosomes():
         #     opts.append("CHRS='{}'".format(geno.get_chromosomes()))
         return opts
 
-    def get_analysis_commands(self, model_spec, geno, ped):
+    def get_analysis_commands(self, model_spec, geno, ped,pheno):
 
 
-            pipeline = self.app_config["SAVANT_SIF_FILE"][0]
+        pipeline = self.app_config["SAIGE_SIF_FILE"][0]
 
         if "SAIGE_BINARY" in self.app_config:
             binary = self.app_config["SAIGE_BINARY"]
@@ -57,15 +66,39 @@ class SaigeModel(BaseModel):
         optlist = self.get_opts(model_spec, geno)
         optlist["post_processing_script_dir"]=self.app_config["POST_PROCESSING_SCRIPT"]
         optlist["gene_annotation_bed"]=self.app_config["NEAREST_GENE_BED"]
-        optlist["input_vcf_expression"]= geno.get_sav_path(1).replace("chr1", "{chrom}")
-        optlist["pheno_file"]= ped.get("path")
+        optlist["savs_path"]= geno.get_sav_path(1).replace("chr1.sav", "")
+        optlist["plinkFile"]= geno.get_pca_genotypes_path()
+        optlist["samples_file"]= self.working_directory + "/samples.txt"
+
+        optlist["output_dir"]=self.working_directory
+        optlist["phenoFile"]= ped.get("path")
+        optlist["outputPrefix"]= "step1"
+        optlist["nThreads"]= 54
+        optlist["sampleIDColinphenoFile"]= "IND_ID"
+        optlist["IsOverwriteVarianceRatioFile"]= "TRUE"
+        print("just above **********",self.app_config["BIND_MOUNT"])
+        optlist["BIND_MOUNT"]=self.app_config["BIND_MOUNT"]
+
 
         resplist = ped.get("response")
+
         if len(resplist)>0:
-                optlist['response']=resplist
+                optlist['phenoCol']=resplist[0]
         covars = ped.get("covars")
+        covar_meta = ped.get("covar_meta") or {}
         if len(covars)>0:
-            optlist['covariates']=covars
+            #cmd += " COVAR={}".format(",".join(covars))
+            print("covars are",covars)
+            cat_covars = [h for h in covars
+                          if covar_meta.get(h, {}).get("type") in {"categorical","binary"}]
+            print("cat_covars",cat_covars)
+            if covars:
+                optlist['covarColList']= "{}".format(",".join(covars))          # → map to SAIGE --covarColList
+            if cat_covars:
+                optlist['qCovarColList']="{}".format(",".join(cat_covars))
+
+
+
         confilepath = self.relative_path("config.yml")
         with open(confilepath, 'w') as file:
             documents = yaml.dump(optlist, file)
@@ -101,10 +134,13 @@ class SaigeModel(BaseModel):
             return {
                 "response": ped_writer.get_response_headers(),
                 "covars": ped_writer.get_covar_headers(),
+                "covar_meta": getattr(ped_writer, "get_covar_meta", lambda: {})(),  # ✅ add this
                 "path": ped_file_path
             }
         except Exception as e:
             raise Exception("Failed to create ped file ({})".format(e))
+
+
 
     def prepare_job(self, model_spec):
         geno = self.get_geno(model_spec)
@@ -112,7 +148,7 @@ class SaigeModel(BaseModel):
 
         ped = self.write_ped_file(self.relative_path("pheno.ped"), model_spec, geno, pheno)
         cmds =  self.if_exit_success(
-            self.get_analysis_commands(model_spec, geno, ped), 
+            self.get_analysis_commands(model_spec, geno, ped,pheno),
             self.get_postprocessing_commands(geno))
         return {"commands": cmds}
 
@@ -145,7 +181,7 @@ class SaigeModel(BaseModel):
             for line in f:
                 if "matrix is singular" in line:
                     return "Matrix is singular or not positive definite"
-                 elif "parameter estimate is 0" in line:
+                elif "parameter estimate is 0" in line:
                                     return "The first variance component parameter estimate is 0"
                 elif "variance of the phenotype is much smaller" in line:
                     return ("Variance of the phenotype is much smaller than 1. "
@@ -163,7 +199,7 @@ class LinearSaigeModel(SaigeModel):
 
     def get_opts(self, model, geno):
         opts = super(self.__class__, self).get_opts(model, geno) 
-        #opts += ["RESPONSETYPE=quantitative"]
+        opts["traitType"]="quantitative"
         opts["model"]=self.model_code
         return opts
 
@@ -179,7 +215,7 @@ class BinarySaigeModel(SaigeModel):
 
     def get_opts(self, model, geno):
         opts = super(self.__class__, self).get_opts(model, geno) 
-        #opts += ["RESPONSETYPE=binary"]
+        opts["traitType"]="binary"
         opts["model"]=self.model_code
         return opts
 
