@@ -51,9 +51,18 @@ class Column(object):
             self.name = coldef["name"]
             self.colindex = [x["name"] for x in pr.meta["columns"]].index(self.name)
             self.missing = coldef.get("missing", None)
+            self.colclass = coldef.get("class", None)
 
     def headers(self):
-        return [self.name] 
+        return [self.name]
+
+    def header_specs(self):
+            # One header, numeric/default column
+            return [{
+                "raw": self.headers()[0],
+                "meta": {"source": self.name, "class": self.colclass, "type": "numeric", "level": None}
+            }]
+
 
     def append(self, row):
         val = row[self.colindex]
@@ -94,6 +103,14 @@ class CategoricalColumn(Column):
     def headers(self):
         return [self.name + "_" + x for x in self.contr_levels]
 
+
+    def header_specs(self):
+            # One-hot per contrast level (exclude reference)
+            return [{
+                "raw": f"{self.name}_{lvl}",
+                "meta": {"source": self.name, "class": "categorical", "type": "categorical", "level": lvl}
+            } for lvl in self.contr_levels]
+
     def values(self, index):
         val = self.value(index) 
         if val is None:
@@ -120,6 +137,13 @@ class BinaryColumn(Column):
     def headers(self):
         return [self.name + "_" + self.event_level]
 
+    def header_specs(self):
+           hdr = f"{self.name}_{self.event_level}"
+           return [{
+               "raw": hdr,
+               "meta": {"source": self.name, "class": "binary", "type": "binary", "level": self.event_level}
+           }]
+
     def values(self, index):
         val = self.value(index) 
         if val is None:
@@ -140,6 +164,11 @@ class PedRequiredColumn(Column):
     def __init__(self, coldef, field, pr):
         super(PedRequiredColumn, self).__init__(coldef, pr)
         self.field = field
+        print("filed is ",self.field)
+        if not hasattr(self, "name") or self.name is None:
+            self.name = field
+        else:
+            print("Using ped field {} mapped to column {}".format(field, self.name))
 
     def headers(self):
         header = ""
@@ -156,6 +185,15 @@ class PedRequiredColumn(Column):
         else:
             header = self.field
         return [header]
+
+
+    def header_specs(self):
+            ped_hdr = self.headers()[0]
+            source = getattr(self, "name", None) or self.field
+            return [{
+                "raw": ped_hdr,
+                "meta": {"source": source, "class": self.field, "type": "ped", "level": None}
+            }]
 
     def append(self, row):
         if self.coldef is None or self.colindex is None:
@@ -214,30 +252,88 @@ class PedWriter:
 
     def expand_columns(self):
 
-        def uniqueify(vals, existing):
-            taken = existing[:]
-            uniqued = []
-            for val in vals:
-                newval = sanitize(val)
-                ind = 1
-                while newval in taken:
-                    newval = sanitize(val + "." + ind)
-                uniqued.append(newval)
-            assert len(vals) == len(uniqued)
-            return uniqued
+      def uniqueify(vals, existing):
+          taken = set(existing)
+          uniqued = []
+          for val in vals:
+              newval = sanitize(val)
+              ind = 1
+              while newval in taken:
+                  newval = sanitize(f"{val}.{ind}")
+                  ind += 1
+              uniqued.append(newval)
+              taken.add(newval)
+          assert len(vals) == len(uniqued)
+          return uniqued
 
-        self.pedheaders = uniqueify(flatten([x.headers() for x in self.pedcols]), [])
-        self.headers = self.pedheaders
-        self.respheaders = uniqueify(flatten([x.headers() for x in self.respcols]), self.headers)
-        self.headers = self.headers + self.respheaders
-        self.covarheaders = uniqueify(flatten([x.headers() for x in self.covarcols]), self.headers)
-        self.headers = self.headers + self.covarheaders
+      def collect_specs(cols):
+          specs = []
+          for c in cols:
+              specs.extend(c.header_specs())   # <--- new: each Column returns header + meta
+          return specs
+
+      ped_specs   = collect_specs(self.pedcols)
+      resp_specs  = collect_specs(self.respcols)
+      covar_specs = collect_specs(self.covarcols)
+
+      self.header_meta = {}   # <--- new: dict of final header → metadata
+
+      # Ped headers
+      ped_raw = [s["raw"] for s in ped_specs]
+      ped_uni = uniqueify(ped_raw, [])
+      self.pedheaders = ped_uni
+      for name, spec in zip(ped_uni, ped_specs):
+          self.header_meta[name] = spec["meta"]
+
+      self.headers = self.pedheaders[:]
+
+      # Resp headers
+      resp_raw = [s["raw"] for s in resp_specs]
+      resp_uni = uniqueify(resp_raw, self.headers)
+      self.respheaders = resp_uni
+      self.headers += resp_uni
+      for name, spec in zip(resp_uni, resp_specs):
+          self.header_meta[name] = spec["meta"]
+
+      # Covar headers
+      print("Covar specs:", covar_specs)
+      covar_raw = [s["raw"] for s in covar_specs]
+      covar_uni = uniqueify(covar_raw, self.headers)
+      print("Covar uni:", covar_uni)
+      self.covarheaders = covar_uni
+      self.headers += covar_uni
+      for name, spec in zip(covar_uni, covar_specs):
+          self.header_meta[name] = spec["meta"]
+
+#     def expand_columns(self):
+#
+#         def uniqueify(vals, existing):
+#             taken = existing[:]
+#             uniqued = []
+#             for val in vals:
+#                 newval = sanitize(val)
+#                 ind = 1
+#                 while newval in taken:
+#                     newval = sanitize(val + "." + ind)
+#                 uniqued.append(newval)
+#             assert len(vals) == len(uniqued)
+#             return uniqued
+#
+#         self.pedheaders = uniqueify(flatten([x.headers() for x in self.pedcols]), [])
+#         self.headers = self.pedheaders
+#         self.respheaders = uniqueify(flatten([x.headers() for x in self.respcols]), self.headers)
+#         self.headers = self.headers + self.respheaders
+#         self.covarheaders = uniqueify(flatten([x.headers() for x in self.covarcols]), self.headers)
+#         self.headers = self.headers + self.covarheaders
 
     def get_response_headers(self):
         return self.respheaders
 
     def get_covar_headers(self):
         return self.covarheaders
+    def get_header_meta(self): return self.header_meta
+
+    def get_covar_meta(self): return {h: self.header_meta[h] for h in self.covarheaders}
 
     def _result_rows(self):
         for idx in range(max((len(x) for x in self.allcols))):

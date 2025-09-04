@@ -30,6 +30,7 @@ class SaigeModelOld(BaseModel):
                 raise Exception("Unrecognized variant filter ({})".format(vf))
         if model.get("region", None):
             region = model.get("region").upper()
+            print("reiong", region)
             if region.startswith("CHR"):
                 region = region[3:]
             opts.append("CHRS={}".format(region))
@@ -140,7 +141,7 @@ class SaigeModelOld(BaseModel):
                     return "Matrix is singular or not positive definite"
         return None
         
-class LinearSaigeModelOld(SaigeModel):
+class LinearSaigeModelOld(SaigeModelOld):
     model_code = "saige-qt"
     model_name = "Saige Linear Mixed Model"
     model_desc = "Fast linear mixed model with kinship adjustment"
