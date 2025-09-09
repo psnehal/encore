@@ -55,16 +55,16 @@ class SlurmJob:
         batch_output_path = self.relative_path("batch_script_output.txt")
 
         self.write_batch_script(batch_script_path, model_plan)
-#         with open(batch_output_path, "w") as f:
-#             try:
-#                 subprocess.check_call([sbatch, batch_script_path], stdout=f)
-#             except subprocess.CalledProcessError as e:
-#                 # log to server log
-#                 print("SBATCH ERROR")
-#                 print(e)
-#                 raise Exception("Could not queue job")
-#             except OSError:
-#                 raise Exception("Could not find sbatch")
+        with open(batch_output_path, "w") as f:
+            try:
+                subprocess.check_call([sbatch, batch_script_path], stdout=f)
+            except subprocess.CalledProcessError as e:
+                # log to server log
+                 print("SBATCH ERROR")
+                 print(e)
+                 raise Exception("Could not queue job")
+            except OSError:
+                 raise Exception("Could not find sbatch")
         return True
 
     def get_model(self, model_spec = None):
