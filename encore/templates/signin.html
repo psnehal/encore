@@ -1,15 +1,15 @@
 {% set navigation_links = {} %}
 {% extends "layout.html" %}
 {% block content %}
-<div class="row vertical-align">
-    <div class="col-xs-6" style="text-align:center">
+<div class="row align-items-center">
+    <div class="col-md-6 text-center">
         <img src="{{url_for("static",filename="img/encore-e-blue.png")}}" alt="Encore Logo""/>
         <h1>Encore for MGI</h1>
         <p>Encore is a web-based tool for running association
             tests with large-scale genetic sequencing data.</p>
         <p>Currently this site is set up to analyze data for the MGI project.</p>
     </div>
-    <div class="col-xs-6 text-center">
+    <div class="col-md-6 text-center">
         <p>To proceed, please sign in with a UMICH ID.</p>
         <form class="vflex" style="margin: 1em auto; width: 300px; height: 100px; border: 1px solid #333333; border-radius: 4px;">
             <button name="authorize" type="submit" style="margin-top: 2em">Sign In With UMICH</button>
