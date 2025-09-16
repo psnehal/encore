@@ -26,7 +26,7 @@ class SlurmJob:
                 "#SBATCH --account={}".format(self.config.get("SLURM_ACCOUNT")))
 
         sbatch_headers.extend((
-            "#SBATCH --partition={}".format(self.config.get("QUEUE_PARTITION", "encore")),
+           # "#SBATCH --partition={}".format(self.config.get("QUEUE_PARTITION", "encore")),
             "#SBATCH --job-name=gasp_{}".format(self.job_id),
             "#SBATCH --mem-per-cpu={}".format(mem_per_cpu),
             "#SBATCH --chdir={}".format(self.job_directory),

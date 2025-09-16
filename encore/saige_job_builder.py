@@ -15,6 +15,45 @@ class SaigeModel(BaseModel):
         BaseModel.__init__(self, working_directory, app_config) 
         self.cores_per_job = 56
 
+
+    def returnContigs(self,region):
+        contigVal={}
+        contigDict = {
+            "chr1":248956422,
+            "chr2":242193529,
+            "chr3":198295559,
+            "chr4":190214555,
+            "chr5":181538259,
+            "chr6":170805979,
+            "chr7":159345973,
+            "chr8":145138636,
+            "chr9":138394717,
+            "chr10":133797422,
+            "chr11":135086622,
+            "chr12":133275309,
+            "chr13":114364328,
+            "chr14":107043718,
+            "chr15":101991189,
+            "chr16":90338345,
+            "chr17":83257441,
+            "chr18":80373285,
+            "chr19":58617616,
+            "chr20":64444167,
+            "chr21":46709983,
+            "chr22":50818468,
+            "chrX":156040895
+        }
+
+        if(region == "all"):
+            contigVal= contigDict
+        else:
+            regval = contigDict.get(region)
+            contigVal[region]=regval
+
+
+        return contigVal
+
+
     def get_opts(self, model, geno):
         opts = {}
         if model.get("response_invnorm", False):
@@ -34,13 +73,16 @@ class SaigeModel(BaseModel):
                 raise Exception("Unrecognized variant filter ({})".format(vf))
 
         opts['region_size']=10000000
-        if model.get("region", None):
-
-                    region = model.get("region").upper()
-                    print("reiong", region)
-                    if region.startswith("CHR"):
-                        region = region[3:]
-                    opts["CHRS"] = region
+        region_value = model.get("region", None)
+        if region_value is None:
+            contigval = self.returnContigs("all")
+            opts['contigs']=contigval
+        else:
+            region = model.get("region")
+            print("region",region)
+            if region.startswith("CHR"):
+                region = region[3:]
+            opts["CHRS"] = region
 
         # elif geno.get_chromosomes():
         #     opts.append("CHRS='{}'".format(geno.get_chromosomes()))
@@ -49,12 +91,14 @@ class SaigeModel(BaseModel):
     def get_analysis_commands(self, model_spec, geno, ped,pheno):
 
 
-        pipeline = self.app_config["SAIGE_SIF_FILE"][0]
+        pipeline = self.app_config["SAIGE_SIF_FILE"]
+        print("pipiline is",pipeline)
 
         if "SAIGE_BINARY" in self.app_config:
             binary = self.app_config["SAIGE_BINARY"]
         if isinstance(binary, tuple):
             binary = binary[0]
+        print("binary is",binary)
         if not binary:
             raise Exception("Unable to find Saige sif file file  (pipeline: {})".format(pipeline))
         #for dev singularity exec -B /net/wonderland:/net/wonderland:ro,/net/dumbo:/net/dumbo:ro
@@ -83,7 +127,7 @@ class SaigeModel(BaseModel):
         resplist = ped.get("response")
 
         if len(resplist)>0:
-                optlist['phenoCol']=resplist[0]
+                optlist['response']=resplist[0]
         covars = ped.get("covars")
         covar_meta = ped.get("covar_meta") or {}
         if len(covars)>0:

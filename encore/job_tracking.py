@@ -63,6 +63,7 @@ class Tracker(object):
             status = "succeeded"
 
         if status:
+            print("status from job tracking", status)
             Job.update_status(job_id, status, reason, old_status)
             notifier = get_notifier()
             if notifier:
