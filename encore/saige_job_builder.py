@@ -143,7 +143,7 @@ class SaigeModel(BaseModel):
 
 
 
-        confilepath = self.relative_path("config.yml")
+        confilepath = self.relative_path("config.yaml")
         with open(confilepath, 'w') as file:
             documents = yaml.dump(optlist, file)
         return [cmd]
