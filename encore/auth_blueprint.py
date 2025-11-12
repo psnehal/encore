@@ -129,7 +129,7 @@ def get_checkin():
 def get_check_in_oidcview(target):
     signin_url = request.url_root + target
     client = Client(client_authn_method=CLIENT_AUTHN_METHOD)
-    info = {"client_id": current_app.config.get("REMOVED", None), "client_secret": current_app.config.get("REMOVED", None)}
+    info = {"client_id": current_app.config.get("UMICH_LOGIN_CLIENT_ID", None), "client_secret": current_app.config.get("UMICH_LOGIN_CLIENT_SECRET", None)}
     client_reg = RegistrationResponse(**info)
     client.store_registration_info(client_reg)
 
@@ -293,7 +293,7 @@ def get_check_in_oidcview(target):
     elif "authorize" in request.args:
         nonce = rndstr()
         args = {
-            'client_id': current_app.config.get("REMOVED", None),
+            'client_id': current_app.config.get("UMICH_LOGIN_CLIENT_ID", None),
             'response_type': 'code',
             'scope': ENCORE_SCOPE,
             'nonce': nonce,
