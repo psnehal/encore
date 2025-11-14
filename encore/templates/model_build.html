@@ -60,8 +60,11 @@
 
 		function validateForm(form) {
 			var errors = [];
+			console.log("inside the valiedate form");
 			var resp =  responseSelect.val();
 			var covar = covariateSelect.val() || [];
+			console.log("iresp",resp);
+			console.log(covar);
 			var modelInput = $("input[name=model]:checked", "#model-form")
 			if (resp == "") {
 				errors.push("Missing response");
@@ -70,7 +73,10 @@
 				errors.push("Response cannot also be a covariate");
 			}
 			var logtran = $("input[name=response_invnorm]", "#model-form").prop("checked");
+			console.log("logtran",logtran);
 			var modelObj = findModel(modelInput.val());
+			console.log("modelObj",logtran);
+
 			if (modelObj.response_class=="binary" && logtran) {
 				errors.push("Cannot perform normalization on response for binary outcomes");
 			}
@@ -102,14 +108,27 @@
 		}
 
 		function showDuplicateMessage(dup_jobs) {
-			var $box = $("#duplicateModal");
-			var list = $("<ul></ul>").append(dup_jobs.map(function(x) {
-				return $("<li></li>").
-					append($("<a></a>", {text: x.job_name, href: x.url_job})).
-					append(" (" + x.creation_date + ")")
-			}));
-			$box.find(".dup-list").empty().append(list);
-			$box.modal();
+			const items = Array.isArray(dup_jobs) ? dup_jobs : Object.values(dup_jobs || {});
+			const $ul = $('<ul/>');
+
+				items.forEach(x => {
+					const name = String(x?.job_name ?? '(unnamed job)');
+					const url  = String(x?.url_job ?? '#');
+					const date = x?.creation_date != null ? String(x.creation_date) : '';
+
+					const $li = $('<li/>');
+					$('<a/>', { href: url }).text(name).appendTo($li);
+					if (date) $('<span/>').text(` (${date})`).appendTo($li);
+
+					$ul.append($li);
+				});
+
+				$('#duplicateModal .dup-list').empty().append($ul);
+
+			const el = document.getElementById('duplicateModal');
+			if (el && window.bootstrap) new bootstrap.Modal(el).show();
+
+			/*$box.modal();*/
 		}
 
 		function showModelErrors(modelErrors) {
@@ -119,27 +138,36 @@
 				return $("<li></li>").append(x)
 			}));
 			$box.find(".err-list").empty().append(list);
-			$box.modal();
+
+			var modal = new bootstrap.Modal($box[0]);  // or document.getElementById('yourModalId')
+			modal.show();
+
+
 		}
 
 		function submitModel(e) {
 			e.preventDefault();
+			console.log("in the submit model ");
 			var form = $("#model-form");
 			var button = new SubmitOnce(form.find(".submit-button"));
 			button.disable()
 			var formErrors = validateForm(form);
+			console.log("formErrors",formErrors);
 			if (formErrors.length) {
 				showModelErrors(formErrors)
 				button.enable();
 				return false;
 			}
 			form = form[0];
+			console.log("form",form);
 			var fd = new FormData(form);
 			var xhr = new XMLHttpRequest();
 			xhr.addEventListener("load", function () {
 				var resp;
+				console.log("xhr.status",xhr.status);
 				if (xhr.status >= 200 && xhr.status < 300) {
 					try {
+						console.log("responseText",xhr.responseText);
 						resp = JSON.parse(xhr.responseText);
 						if (resp.url_job) {
 							window.location = resp.url_job;
@@ -155,6 +183,7 @@
 					var message;
 					try {
 						resp = JSON.parse(xhr.responseText);
+						console.log("responseText",resp);
 						message = resp.error;
 						if (resp.details) {
 							message += ": " + resp.details;
@@ -378,7 +407,7 @@
 			while (match = search.exec(query))
 				urlParams[decode(match[1])] = decode(match[2]);
 			return urlParams;
-		} 
+		}
 
 		$(function() {
 
