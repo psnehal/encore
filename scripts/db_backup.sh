@@ -14,17 +14,19 @@ MYSQL_DB=$(grep MYSQL_DB ${ENCORE_HOME}/flask_config.py | sed 's/,*$//g' | cut -
 MYSQL_USER=$(grep MYSQL_USER ${ENCORE_HOME}/flask_config.py | sed 's/,*$//g' | cut -d: -f2 | xargs)
 MYSQL_PASSWORD=$(grep MYSQL_PASSWORD ${ENCORE_HOME}/flask_config.py | sed 's/,*$//g' | cut -d: -f2 | xargs)
 
+FILE_PREFIX="mariadb-backup.$(hostname -s)"
+
 # Backup database
 mysqldump --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} \
-  ${MYSQL_DB} > ${BACKUP_LOCATION}/mariadb-backup.$($DATE "+%Y.%m.%d").sql
+  ${MYSQL_DB} > ${BACKUP_LOCATION}/${FILE_PREFIX}.$($DATE "+%Y.%m.%d").sql
 
-# Delete old backups keeping 2 weeks worth of daily backups
+# Delete old backups keeping 150 days of daily backups
 LOOP=0
 while [ $LOOP -lt $REACH ]
 do
     let OFFSET=$LOOP+150
     PREV_DATE=$($DATE --date="${YESTERDAY} -${OFFSET}days" +%Y.%m.%d)
-    FILE=${BACKUP_LOCATION}/mariadb-backup.${PREV_DATE}.sql
+    FILE=${BACKUP_LOCATION}/${FILE_PREFIX}.${PREV_DATE}.sql
 
     if [ -f "$FILE" ]; then
         echo "Deleting old daily backup (keep rolling 150 days): ${FILE}"
