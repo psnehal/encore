@@ -111,9 +111,8 @@ class SaigeModel(BaseModel):
         optlist["post_processing_script_dir"]=self.app_config["POST_PROCESSING_SCRIPT"]
         optlist["gene_annotation_bed"]=self.app_config["NEAREST_GENE_BED"]
         optlist["savs_path"]= geno.get_sav_path(1).replace("chr1.sav", "")
-        optlist["plinkFile"]= geno.get_pca_genotypes_path()
-        optlist["samples_file"]= self.working_directory + "/samples.txt"
-
+        optlist["plinkFile"]= geno.get_pca_genotypes_path().replace(".bed", "")
+        optlist["samples_file"]= geno.get_samples_path()
         optlist["output_dir"]=self.working_directory
         optlist["phenoFile"]= ped.get("path")
         optlist["outputPrefix"]= "step1"

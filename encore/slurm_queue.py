@@ -36,7 +36,8 @@ class SlurmJob:
             "source /home/encore-web/.bashrc",
             "export PYTHONPATH={}".format(self.config.get("PYTHONPATH")),
             "export OPENBLAS_NUM_THREADS=1",
-            "export OMP_NUM_THREADS=1"))
+            "export OMP_NUM_THREADS=1",
+            "module load singularity"))
 
         return sbatch_headers
 
