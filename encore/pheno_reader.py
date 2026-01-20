@@ -128,7 +128,7 @@ def strip_comments(item, token="#"):
             yield line
 
 def get_comments(item, token="#"):
-    print(item);
+    #print(item);
     for line in item:
         s = line.strip()
         if not s.startswith(token) and len(s)>0:
@@ -250,12 +250,12 @@ def infer_meta(filepath, dialect=None, known_sample_ids=None, sample_id_column=N
     meta["encoding"] = encoding
 
     records = 0
-    print(filepath)
+    #print(filepath)
     with open(filepath, 'r', encoding=encoding) as csvfile:
         # store csv dialect
         if not dialect:
             dialect = sniff_file(csvfile)
-            print("dialect",dialect)
+            #print("dialect",dialect)
         for k in [k for k in dir(dialect) if not k.startswith("_")]:
             meta["layout"]["csv_" + k] = getattr(dialect, k)
 
@@ -267,18 +267,18 @@ def infer_meta(filepath, dialect=None, known_sample_ids=None, sample_id_column=N
         csvfile.seek(0)
 
         cvr = csv.reader(strip_comments(csvfile), dialect)
-        print("cvr",cvr)
+        #print("cvr",cvr)
         firstrow = next(cvr)
-        print("firstrow",firstrow)
+        #print("firstrow",firstrow)
         cols = defaultdict(lambda : defaultdict(Counter))
-        print("cols",cols)
+        #print("cols",cols)
         for row in cvr:
             if len(row):
                 records += 1
             for idx, val in enumerate(row):
                 cols[idx][guess_raw_type(val)][val] += 1
     meta["records"] = records
-    print("records",records)
+    #print("records",records)
 
     # find column headers
     if comments:

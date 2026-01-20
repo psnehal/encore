@@ -53,7 +53,7 @@ class Phenotype:
 
     def check_has_id_col(self):
         sample_id_col = [x for x in self.meta.get("columns", []) if x.get("class", "")=="sample_id"]
-        print(sample_id_col)
+        #print(sample_id_col)
         if len(sample_id_col) != 1:
             return False
         return True
@@ -87,7 +87,7 @@ class Phenotype:
 
     def as_object(self):
         obj = {key: getattr(self, key) for key in self.__dbfields if hasattr(self, key)}
-        print(self.pheno_id)
+        #print(self.pheno_id)
         obj["pheno_id"] = self.pheno_id
         obj["meta"] = self.meta
         obj["has_sample_id_col"] = self.check_has_id_col()
