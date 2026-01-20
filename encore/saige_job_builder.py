@@ -103,7 +103,7 @@ class SaigeModel(BaseModel):
             raise Exception("Unable to find Saige sif file file  (pipeline: {})".format(pipeline))
         #for dev singularity exec -B /net/wonderland:/net/wonderland:ro,/net/dumbo:/net/dumbo:ro
         #cmd = "singularity exec -B /net/encore1/savant:/net/encore1/savant:ro -B /net/encore1/encoredata:/net/encore1/encoredata {} ".format(pipeline) + \
-        cmd = "singularity exec -B /net/wonderland:/net/wonderland:ro  -B /net/dumbo:/net/dumbo {} ".format(pipeline) + \
+        cmd = "singularity exec {} ".format(pipeline) + \
               " snakemake --snakefile {}".format(binary)+ \
               " -j ${SLURM_CPUS_PER_TASK}"
 
