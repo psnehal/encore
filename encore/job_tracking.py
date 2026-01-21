@@ -77,7 +77,7 @@ class Tracker(object):
 
     def update_job_statuses(self, db, jobs):
         sacct = current_app.config.get("SACCT_JOB_BINARY")  #'/usr/cluster/bin/sacct'
-        p = subprocess.Popen([sacct, "-u", pwd.getpwuid(os.getuid())[0], \
+        p = subprocess.Popen([sacct, "-X", "-u", pwd.getpwuid(os.getuid())[0], \
             "--format", "jobid,state,exitcode,jobname,submit", "--noheader", "-P", \
             "-S", (datetime.date.today() - datetime.timedelta(days=30)).strftime("%Y-%m-%d")], \
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -87,6 +87,7 @@ class Tracker(object):
         slurm_jobs_found = dict()
         for line in squeue_out.decode().rstrip().split("\n"):
             if line:
+                print(line)
                 slurm_job = line.strip().split("|")
                 # strip off "gasp_"
                 job_name = slurm_job[3][5:]
