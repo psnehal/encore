@@ -175,23 +175,17 @@ def get_check_in_oidcview(target):
         user_info2=client.user_info_request(
             access_token=access_token2
         )
-        #print("***************************************************** user_info2 ***************************")
-
-
-        #print("***************************************************** Running user_info now  ***************************")
         user_info = client.do_user_info_request(
             access_token=access_token2)
-        print(user_info)
-
         useremail= user_info['email']
         usersub = user_info['sub']
-        print(usersub)
+        #print(usersub)
 
         user = load_uniquename(usersub)
         if user:
             print("got the user")
         else:
-            print("from the else loop load_user")
+            #print("from the else loop load_user")
             user = load_user(useremail)
             if user:
                 print(user.rid)
@@ -207,9 +201,7 @@ def get_check_in_oidcview(target):
                     userdev['affiliation']='test'
                     #userdev['creation_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
                     #userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
-
                     user.fix_nullentry(userdev,db)
-                    print("user updated")
                 elif not uname:
                     print("from the elif loop")
                     db = sql_pool.get_conn()
@@ -219,13 +211,13 @@ def get_check_in_oidcview(target):
                     userdev['uniquename']=usersub
                     userdev['affiliation']='test'
                     user.fix_nullentry(userdev,db)
-                    print("user updated")
+
 
                 else:
                     print('usersub',usersub)
 
 
-        print("user from load_uniquename",user)
+        #print("user from load_uniquename",user)
 
         if 'edumember_ismemberof' in user_info.keys():
             groupinfo= user_info['edumember_ismemberof']
@@ -347,7 +339,7 @@ def load_userfullname(fullname):
 def load_uniquename(uniquename):
     db = sql_pool.get_conn()
     user = User.from_unique_name(uniquename, db)
-    print(user)
+    #print(user)
     if user:
         #try:
         user.log_login(db)
@@ -393,7 +385,7 @@ def get_sign_in_view(target):
         user = load_user(user_data["email"])
         if user:
             if user.is_active():
-                print("user is active")
+                #print("user is active")
                 flask_login.login_user(user)
                 redirect_to = session.pop("post_login_page", None)
                 try:
@@ -416,7 +408,7 @@ def get_sign_in_view(target):
             response_type="code",
             prompt="select_account",
             redirect_uri=signin_url)
-        print(authorize_url)
+        #print(authorize_url)
 
         return redirect()
     else:
