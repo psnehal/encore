@@ -188,11 +188,11 @@ def get_check_in_oidcview(target):
             #print("from the else loop load_user")
             user = load_user(useremail)
             if user:
-                print(user.rid)
+
                 uname =user.unique_name
-                print(uname)
+
                 if uname == 'NULL':
-                    print("from the update loop")
+
                     db = sql_pool.get_conn()
                     userdev= {}
                     userdev['email']=useremail
@@ -203,7 +203,7 @@ def get_check_in_oidcview(target):
                     #userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
                     user.fix_nullentry(userdev,db)
                 elif not uname:
-                    print("from the elif loop")
+
                     db = sql_pool.get_conn()
                     userdev= {}
                     userdev['email']=useremail
@@ -244,7 +244,7 @@ def get_check_in_oidcview(target):
             else:
                 db = sql_pool.get_conn()
                 #print("user is not present in the db")
-                print("create user")
+                #print("create user")
                 userdev= {}
                 userdev['email']=useremail
                 userdev['fullname']=usersub
