@@ -37,6 +37,7 @@ class Tracker(object):
         job = None
         try:
             job = Job.get(job_id, config)
+            print("jobs is ",job)
         except Exception as e:
             print("Error Fetching Job in Tracker")
             print(e)
@@ -90,7 +91,7 @@ class Tracker(object):
                 print(line)
                 slurm_job = line.strip().split("|")
                 # strip off "gasp_"
-                job_name = slurm_job[3][5:]
+                job_name = slurm_job[3]
                 print("job name form update status",job_name)
                 if job_name in slurm_jobs_found:
                     prev_date = datetime.datetime.strptime(slurm_jobs_found[job_name][4], '%Y-%m-%dT%H:%M:%S')
@@ -100,6 +101,7 @@ class Tracker(object):
                 else:
                     slurm_jobs_found[job_name] = slurm_job
         jobs_updated = 0
+        print("slurm_jobs_found",slurm_jobs_found)
         for slurm_job in slurm_jobs_found.values():
             for j in jobs:
                 if slurm_job[3][5:] == j.id:
