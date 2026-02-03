@@ -77,7 +77,7 @@ class Tracker(object):
                     pass
 
 
-    def update_job_statuses(self, db, jobs):
+    def update_job_statuses(self,jobs, config):
         sacct = current_app.config.get("SACCT_JOB_BINARY")  #'/usr/cluster/bin/sacct'
         p = subprocess.Popen([sacct, "-X", "-u", pwd.getpwuid(os.getuid())[0], \
             "--format", "jobid,state,exitcode,jobname,submit", "--noheader", "-P", \
