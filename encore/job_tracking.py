@@ -25,6 +25,7 @@ class Tracker(object):
     def query_pending_jobs(self):
 
         joblist = Job.list_all_active()
+        print("query_pending_jobs" , joblist)
 
         jobs = []
         for row in joblist:
@@ -105,7 +106,6 @@ class Tracker(object):
         for slurm_job in slurm_jobs_found.values():
             for j in jobs:
                 print("job is  is ", j)
-                print("job id  is ", j.id)
                 #print("jobs type:", type(jobs), "len:", len(jobs))
                 if slurm_job[3] == j.id:
                     print("slurm_job[3]",slurm_job[3])
@@ -119,6 +119,7 @@ class Tracker(object):
             config = current_app.config
             try:
                 jobs = self.query_pending_jobs()
+                print(jobs)
                 if len(jobs) != 0:
                     self.update_job_statuses(jobs, config)
             except Exception as e:
