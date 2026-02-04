@@ -4,8 +4,8 @@ function FormHelper(source_id, item_name) {
     var resolve = null;
     var actionCallBack = null;
     var itemName = item_name || "Item";
-    
-    var inputs = {} 
+
+    var inputs = {}
     $modal.find("input,textarea,select").each((idx, ele) => {
         var $ele = $(ele);
         if($ele.data("bind")) {
@@ -13,7 +13,7 @@ function FormHelper(source_id, item_name) {
         }
     });
     var ui = {
-        "title": $modal.find(".modal-title"), 
+        "title": $modal.find(".modal-title"),
         "action": $modal.find(".modal-action"),
         "error_message": $modal.find(".error-message")
     }
@@ -21,7 +21,7 @@ function FormHelper(source_id, item_name) {
     $modal.find("form").on("keyup keypress", function(e) {
         // prevent submisson on "Enter" press
         var keyCode = e.keyCode || e.which;
-        if (keyCode === 13) { 
+        if (keyCode === 13) {
             e.preventDefault();
             return false;
         }

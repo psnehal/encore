@@ -3,8 +3,8 @@
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/job_list.css') }}">
 
-	<link rel="stylesheet" href="//cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css"/>
-	<script type="text/javascript" src="//cdn.datatables.net/1.10.12/js/jquery.dataTables.min.js"></script>
+	<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+	<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 	<script type="text/javascript" src="{{ url_for('static', filename='js/dt_api_interface.js') }}"></script>
 	<script type="text/javascript" src="{{ url_for('static', filename='js/form_helper.js') }}"></script>
 
@@ -24,11 +24,18 @@
 							var table = $("#notice-table").DataTable();
 							table.clearCache();
 							table.ajax.reload(null, false);
+							bootstrap.Modal.getOrCreateInstance(document.getElementById("modalBox")).hide();
 						});
-					})
-				})
+					});
+					showModal();
+				});
 			}
 		}
+		function showModal() {
+			  const el = document.getElementById("modalBox");
+			  bootstrap.Modal.getOrCreateInstance(el).show();
+			}
+
 		function show_add_form() {
 			if (notice_form) {
 				var default_values = {"message": "", "end_date": "", "start_date": format_datetime(new Date())};
@@ -38,8 +45,10 @@
 						var table = $("#notice-table").DataTable();
 						table.clearCache();
 						table.ajax.reload(null, false);
+						bootstrap.Modal.getOrCreateInstance(document.getElementById("modalBox")).hide();
 					});
 				})
+				showModal();
 			}
 		}
 
@@ -98,26 +107,33 @@
 {% block content %}
 
         <div class="section">
-            <div class="section-title row">
+			<div class="section-title row align-items-center">
 				<div class="col-md-10">
-					<h2>Notices</h2>
+					<h2 class="mb-0">Notices</h2>
 				</div>
-				<div class="col-md-2">
-					<button class="btn btn-success" name="add_notice" id="new_notice_button">New Notice</button>
+				<div class="col-md-2 text-md-end mt-2 mt-md-0">
+					<button
+							type="button"
+							class="btn btn-success"
+							id="new_notice_button"
+							>
+						New Notice
+					</button>
 				</div>
-            </div>
+			</div>
+
             <table id="notice-table"></table>
         </div>
 
-		<div class="modal fade" id="modalBox" role="dialog">
+		<div class="modal fade" id="modalBox" tabindex="-1" aria-labelledby="modalBoxLabel" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<div class="modal-header">
-						<button type="button" class="close" data-dismiss="modal">&times;</button>
-						<h4 class="modal-title">Add Notice</h4>
+						<h5 class="modal-title" id="modalBoxLabel">Add Notice</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 					</div>
 					<div class="modal-body">
-						<div class="alert alert-danger error-message" role="alert" style="display: none"> </div>
+						<div class="alert alert-danger error-message d-none" role="alert"></div>
 						<form class="form-horizonal"> 
 						<div class="form-group row">
 							<label class="col-sm-2 control-label" for="message">Message</label>
@@ -135,7 +151,7 @@
 						</form>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
 						<button type="button" class="btn btn-success modal-action">Go</button>
 					</div>
 				</div>
