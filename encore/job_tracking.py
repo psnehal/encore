@@ -25,7 +25,7 @@ class Tracker(object):
     def query_pending_jobs(self):
 
         joblist = Job.list_all_active()
-        print("query_pending_jobs" , joblist)
+
 
         jobs = []
         for row in joblist:
@@ -92,7 +92,7 @@ class Tracker(object):
                 print(line)
                 slurm_job = line.strip().split("|")
                 # strip off "gasp_"
-                job_name = slurm_job[3]
+                job_name = slurm_job[3][5:]
                 #print("job name form update status",job_name)
                 if job_name in slurm_jobs_found:
                     prev_date = datetime.datetime.strptime(slurm_jobs_found[job_name][4], '%Y-%m-%dT%H:%M:%S')
@@ -102,13 +102,13 @@ class Tracker(object):
                 else:
                     slurm_jobs_found[job_name] = slurm_job
         jobs_updated = 0
-        print("slurm_jobs_found",slurm_jobs_found)
+
         for slurm_job in slurm_jobs_found.values():
             for j in jobs:
                 print("job is  is ", j)
+                print("slurm_job[3][5:] ", slurm_job[3][5:])
                 #print("jobs type:", type(jobs), "len:", len(jobs))
-                if slurm_job[3] == j.id:
-                    print("slurm_job[3]",slurm_job[3])
+                if slurm_job[3][5:] == j.id:
                     self.update_job_status(j.id, slurm_job[1], slurm_job[2], j.status, config)
                     jobs_updated += 1
                     break
