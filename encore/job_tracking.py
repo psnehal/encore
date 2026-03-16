@@ -103,9 +103,6 @@ class Tracker(object):
 
         for slurm_job in slurm_jobs_found.values():
             for j in jobs:
-                print("job is  is ", j)
-                print("slurm_job[3][5:] ", slurm_job[3][5:])
-                #print("jobs type:", type(jobs), "len:", len(jobs))
                 if slurm_job[3][5:] == j.id:
                     self.update_job_status(j.id, slurm_job[1], slurm_job[2], j.status, config)
                     jobs_updated += 1

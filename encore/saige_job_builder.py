@@ -12,7 +12,7 @@ class SaigeModel(BaseModel):
         ("min-maf-001-mac-20","MAF > 0.1% AND MAC > 20")]
 
     def __init__(self, working_directory="./", app_config=None):
-        BaseModel.__init__(self, working_directory, app_config) 
+        BaseModel.__init__(self, working_directory, app_config)
         self.cores_per_job = 56
 
 
@@ -126,8 +126,10 @@ class SaigeModel(BaseModel):
         optlist["sampleIDColinphenoFile"]= "IND_ID"
         optlist["IsOverwriteVarianceRatioFile"]= "TRUE"
         optlist["BIND_MOUNT"]=self.app_config["BIND_MOUNT"]
+        print("bind mount",self.app_config["BIND_MOUNT"])
         optlist["bgzip"]=self.app_config.get("BGZIP_BINARY")
         optlist["tabix"]=self.app_config.get("TABIX_BINARY")
+        println("bgzip is : ",self.app_config.get("BGZIP_BINARY") ,"tabix : ", self.app_config.get("TABIX_BINARY") )
         resplist = ped.get("response")
 
         if len(resplist)>0:
