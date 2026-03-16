@@ -112,7 +112,7 @@ class SaigeModel(BaseModel):
         #cmd = "singularity exec -B /net/encore1/savant:/net/encore1/savant:ro -B /net/encore1/encoredata:/net/encore1/encoredata {} ".format(pipeline) + \
         cmd =  (
                 "singularity exec --bind {} --cleanenv {} ".format(bind_path, pipeline)
-                + "snakemake --snakefile {} -j SLURM_CPUS_PER_TASK".format(binary)
+                + "snakemake --snakefile {} -j ${SLURM_CPUS_PER_TASK}".format(binary)
         )
 
         optlist = self.get_opts(model_spec, geno)
