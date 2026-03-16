@@ -1,4 +1,3 @@
-
 from .base_model import BaseModel
 from .ped_writer import PedWriter
 import os
@@ -8,96 +7,94 @@ import yaml
 
 class SaigeModel(BaseModel):
     filters = [("min-mac-20", "MAC > 20"),
-        ("min-maf-001", "MAF > 0.1%"),
-        ("min-maf-001-mac-20","MAF > 0.1% AND MAC > 20")]
+               ("min-maf-001", "MAF > 0.1%"),
+               ("min-maf-001-mac-20", "MAF > 0.1% AND MAC > 20")]
 
     def __init__(self, working_directory="./", app_config=None):
         BaseModel.__init__(self, working_directory, app_config)
         self.cores_per_job = 56
 
+    def returnContigs(self, region, strip_chr=False):
 
-    def returnContigs(self,region,strip_chr=False):
-
-        contigVal={}
+        contigVal = {}
         contigDict = {
-            "chr1":248956422,
-            "chr2":242193529,
-            "chr3":198295559,
-            "chr4":190214555,
-            "chr5":181538259,
-            "chr6":170805979,
-            "chr7":159345973,
-            "chr8":145138636,
-            "chr9":138394717,
-            "chr10":133797422,
-            "chr11":135086622,
-            "chr12":133275309,
-            "chr13":114364328,
-            "chr14":107043718,
-            "chr15":101991189,
-            "chr16":90338345,
-            "chr17":83257441,
-            "chr18":80373285,
-            "chr19":58617616,
-            "chr20":64444167,
-            "chr21":46709983,
-            "chr22":50818468,
-            "chrX":156040895
+            "chr1": 248956422,
+            "chr2": 242193529,
+            "chr3": 198295559,
+            "chr4": 190214555,
+            "chr5": 181538259,
+            "chr6": 170805979,
+            "chr7": 159345973,
+            "chr8": 145138636,
+            "chr9": 138394717,
+            "chr10": 133797422,
+            "chr11": 135086622,
+            "chr12": 133275309,
+            "chr13": 114364328,
+            "chr14": 107043718,
+            "chr15": 101991189,
+            "chr16": 90338345,
+            "chr17": 83257441,
+            "chr18": 80373285,
+            "chr19": 58617616,
+            "chr20": 64444167,
+            "chr21": 46709983,
+            "chr22": 50818468,
+            "chrX": 156040895
         }
         if strip_chr:
             contigDict = {k.replace("chr", ""): v for k, v in contigDict.items()}
 
-        if(region == "all"):
-            contigVal= contigDict
+        if (region == "all"):
+            contigVal = contigDict
         else:
             regval = contigDict.get(region)
             if strip_chr:
                 key = regval.replace("chr", "").replace("CHR", "")
-            contigVal[region]=regval
-
+            contigVal[region] = regval
 
         return contigVal
-
 
     def get_opts(self, model, geno):
         opts = {}
         if model.get("response_invnorm", False):
-             opts['inv_norm']= 'true'
+            opts['inv_norm'] = 'true'
         if model.get("variant_filter", False):
             vf = model.get("variant_filter")
             if vf == "min-maf-001-mac-20":
-                opts['min_mac']=20
-                opts['min_maf']= 0.001
+                opts['min_mac'] = 20
+                opts['min_maf'] = 0.001
             elif vf == "min-maf-001":
-                #opts.append("STEP2OPT='--minMAF 0.001 --IsOutputAFinCaseCtrl=FALSE'")
-                opts['min_maf']= 0.001
+                # opts.append("STEP2OPT='--minMAF 0.001 --IsOutputAFinCaseCtrl=FALSE'")
+                opts['min_maf'] = 0.001
             elif vf == "min-mac-20":
-                opts['min_mac']= 20
+                opts['min_mac'] = 20
 
             else:
                 raise Exception("Unrecognized variant filter ({})".format(vf))
 
-        opts['region_size']=10000000
+        opts['region_size'] = 10000000
         region_value = model.get("region", None)
+        print("geno name",geno.name.lower())
         strip_chr = geno.name and "loss" in geno.name.lower()
-        contigval =''
+        print("strip_chr",strip_chr)
+        contigval = ''
         if region_value is None:
-            contigval = self.returnContigs("all")
-            opts['contigs']=contigval
+            contigval = self.returnContigs("all",strip_chr)
+            opts['contigs'] = contigval
         else:
             region = model.get("region")
             if region.startswith("CHR"):
                 region = region[3:]
             if strip_chr:
-                region= region.replace("chr", "").replace("CHR", "")
+                region = region.replace("chr", "").replace("CHR", "")
             opts["CHRS"] = region
 
         # elif geno.get_chromosomes():
         #     opts.append("CHRS='{}'".format(geno.get_chromosomes()))
         return opts
 
-    def get_analysis_commands(self, model_spec, geno, ped,pheno):
-
+    def get_analysis_commands(self, model_spec, geno, ped, pheno):
 
         pipeline = self.app_config["SAIGE_SIF_FILE"]
         if "SAIGE_BINARY" in self.app_config:
@@ -108,48 +105,46 @@ class SaigeModel(BaseModel):
 
         if not binary:
             raise Exception("Unable to find Saige sif file file  (pipeline: {})".format(pipeline))
-        #for dev singularity exec -B /net/wonderland:/net/wonderland:ro,/net/dumbo:/net/dumbo:ro
-        #cmd = "singularity exec -B /net/encore1/savant:/net/encore1/savant:ro -B /net/encore1/encoredata:/net/encore1/encoredata {} ".format(pipeline) + \
-        cmd =  (
+        # for dev singularity exec -B /net/wonderland:/net/wonderland:ro,/net/dumbo:/net/dumbo:ro
+        # cmd = "singularity exec -B /net/encore1/savant:/net/encore1/savant:ro -B /net/encore1/encoredata:/net/encore1/encoredata {} ".format(pipeline) + \
+        cmd = (
                 "singularity exec --bind {} --cleanenv {} ".format(bind_path, pipeline)
                 + "snakemake --snakefile {} -j ${{SLURM_CPUS_PER_TASK}}".format(binary)
         )
 
         optlist = self.get_opts(model_spec, geno)
-        optlist["post_processing_script_dir"]=self.app_config["POST_PROCESSING_SCRIPT"]
-        optlist["gene_annotation_bed"]=self.app_config["NEAREST_GENE_BED"]
-        optlist["savs_path"]= geno.get_sav_path(1).replace("chr1.sav", "")
-        optlist["plinkFile"]= geno.get_pca_genotypes_path().replace(".bed", "")
-        optlist["samples_file"]= geno.get_samples_path()
-        optlist["output_dir"]=self.working_directory
-        optlist["phenoFile"]= ped.get("path")
-        optlist["BIND_MOUNT"]=bind_path
-        optlist["outputPrefix"]= "step1"
-        optlist["nThreads"]= 54
-        optlist["sampleIDColinphenoFile"]= "IND_ID"
-        optlist["IsOverwriteVarianceRatioFile"]= "TRUE"
+        optlist["post_processing_script_dir"] = self.app_config["POST_PROCESSING_SCRIPT"]
+        optlist["gene_annotation_bed"] = self.app_config["NEAREST_GENE_BED"]
+        optlist["savs_path"] = geno.get_sav_path(1).replace("chr1.sav", "")
+        optlist["plinkFile"] = geno.get_pca_genotypes_path().replace(".bed", "")
+        optlist["samples_file"] = geno.get_samples_path()
+        optlist["output_dir"] = self.working_directory
+        optlist["phenoFile"] = ped.get("path")
+        optlist["BIND_MOUNT"] = bind_path
+        optlist["outputPrefix"] = "step1"
+        optlist["nThreads"] = 54
+        optlist["sampleIDColinphenoFile"] = "IND_ID"
+        optlist["IsOverwriteVarianceRatioFile"] = "TRUE"
 
-        print("bind mount",self.app_config["BIND_MOUNT"])
-        optlist["bgzip"]=self.app_config.get("BGZIP_BINARY")
-        optlist["tabix"]=self.app_config.get("TABIX_BINARY")
+        print("bind mount", self.app_config["BIND_MOUNT"])
+        optlist["bgzip"] = self.app_config.get("BGZIP_BINARY")
+        optlist["tabix"] = self.app_config.get("TABIX_BINARY")
         resplist = ped.get("response")
 
-        if len(resplist)>0:
-                optlist['response']=resplist[0]
+        if len(resplist) > 0:
+            optlist['response'] = resplist[0]
         covars = ped.get("covars")
         covar_meta = ped.get("covar_meta") or {}
-        if len(covars)>0:
-            #cmd += " COVAR={}".format(",".join(covars))
-            print("covars are",covars)
+        if len(covars) > 0:
+            # cmd += " COVAR={}".format(",".join(covars))
+            print("covars are", covars)
             cat_covars = [h for h in covars
-                          if covar_meta.get(h, {}).get("type") in {"categorical","binary"}]
-            print("cat_covars",cat_covars)
+                          if covar_meta.get(h, {}).get("type") in {"categorical", "binary"}]
+            print("cat_covars", cat_covars)
             if covars:
-                optlist['covarColList']= "{}".format(",".join(covars))          # → map to SAIGE --covarColList
+                optlist['covarColList'] = "{}".format(",".join(covars))  # → map to SAIGE --covarColList
             if cat_covars:
-                optlist['qCovarColList']="{}".format(",".join(cat_covars))
-
-
+                optlist['qCovarColList'] = "{}".format(",".join(cat_covars))
 
         confilepath = self.relative_path("config.yaml")
         with open(confilepath, 'w') as file:
@@ -158,31 +153,31 @@ class SaigeModel(BaseModel):
 
     def get_postprocessing_commands(self, geno, result_file="./results.txt.gz"):
         cmds = []
-        #add these paramaters in config file
-        #cmds.append("zcat -f {} | ".format(result_file) + \
-            # 'awk -F"\\t" \'BEGIN {OFS="\\t"} NR==1 {for (i=1; i<=NF; ++i) {if($i=="p.value") pcol=i; if($i=="N") ncol=i}; if (pcol<1 || ncol<1) exit 1; print} ' + \
-            # '($ncol > 0 && $pcol < 0.001) {print}\' | ' + \
-            # "{} -c > output.filtered.001.gz".format(self.app_config.get("BGZIP_BINARY", "bgzip")))
+        # add these paramaters in config file
+        # cmds.append("zcat -f {} | ".format(result_file) + \
+        # 'awk -F"\\t" \'BEGIN {OFS="\\t"} NR==1 {for (i=1; i<=NF; ++i) {if($i=="p.value") pcol=i; if($i=="N") ncol=i}; if (pcol<1 || ncol<1) exit 1; print} ' + \
+        # '($ncol > 0 && $pcol < 0.001) {print}\' | ' + \
+        # "{} -c > output.filtered.001.gz".format(self.app_config.get("BGZIP_BINARY", "bgzip")))
 
         if self.app_config.get("MANHATTAN_BINARY"):
-            cmd  = "{} {} ./manhattan.json".format(self.app_config.get("MANHATTAN_BINARY", ""), result_file)
+            cmd = "{} {} ./manhattan.json".format(self.app_config.get("MANHATTAN_BINARY", ""), result_file)
             cmds.append(cmd)
         if self.app_config.get("TOPHITS_BINARY"):
             cmd = "{} {} ./qq.json".format(self.app_config.get("QQPLOT_BINARY", ""), result_file)
             cmds.append(cmd)
         if self.app_config.get("TOPHITS_BINARY"):
-            cmd =  "{} {} ./tophits.json".format(self.app_config.get("TOPHITS_BINARY"), result_file)
+            cmd = "{} {} ./tophits.json".format(self.app_config.get("TOPHITS_BINARY"), result_file)
             if geno.get_build_nearest_gene_path():
                 cmd += " --gene {}".format(geno.get_build_nearest_gene_path())
             cmds.append(cmd)
-        return cmds 
+        return cmds
 
     def write_ped_file(self, ped_file_path, model_spec, geno=None, pheno=None):
         geno = self.get_geno(model_spec, geno)
         pheno = self.get_pheno(model_spec, pheno)
-       
+
         try:
-            ped_writer = self.get_ped_writer(model_spec, geno, pheno) 
+            ped_writer = self.get_ped_writer(model_spec, geno, pheno)
             with open(ped_file_path, "w") as pedfile:
                 ped_writer.write_to_file(pedfile, comment_header=False)
             return {
@@ -194,15 +189,13 @@ class SaigeModel(BaseModel):
         except Exception as e:
             raise Exception("Failed to create ped file ({})".format(e))
 
-
-
     def prepare_job(self, model_spec):
         geno = self.get_geno(model_spec)
         pheno = self.get_pheno(model_spec)
 
         ped = self.write_ped_file(self.relative_path("pheno.ped"), model_spec, geno, pheno)
-        cmds =  self.if_exit_success(
-            self.get_analysis_commands(model_spec, geno, ped,pheno),
+        cmds = self.if_exit_success(
+            self.get_analysis_commands(model_spec, geno, ped, pheno),
             self.get_postprocessing_commands(geno))
         return {"commands": cmds}
 
@@ -236,12 +229,13 @@ class SaigeModel(BaseModel):
                 if "matrix is singular" in line:
                     return "Matrix is singular or not positive definite"
                 elif "parameter estimate is 0" in line:
-                                    return "The first variance component parameter estimate is 0"
+                    return "The first variance component parameter estimate is 0"
                 elif "variance of the phenotype is much smaller" in line:
                     return ("Variance of the phenotype is much smaller than 1. "
                             "Please consider using inverse normalized response")
         return None
-        
+
+
 class LinearSaigeModel(SaigeModel):
     model_code = "saige-qt"
     model_name = "Saige Linear Mixed Model"
@@ -249,13 +243,14 @@ class LinearSaigeModel(SaigeModel):
     depends = ["sav"]
 
     def __init__(self, working_directory, config):
-        SaigeModel.__init__(self, working_directory, config) 
+        SaigeModel.__init__(self, working_directory, config)
 
     def get_opts(self, model, geno):
-        opts = super(self.__class__, self).get_opts(model, geno) 
-        opts["traitType"]="quantitative"
-        opts["model"]=self.model_code
+        opts = super(self.__class__, self).get_opts(model, geno)
+        opts["traitType"] = "quantitative"
+        opts["model"] = self.model_code
         return opts
+
 
 class BinarySaigeModel(SaigeModel):
     model_code = "saige-bin"
@@ -268,13 +263,13 @@ class BinarySaigeModel(SaigeModel):
         SaigeModel.__init__(self, working_directory, config)
 
     def get_opts(self, model, geno):
-        opts = super(self.__class__, self).get_opts(model, geno) 
-        opts["traitType"]="binary"
-        opts["model"]=self.model_code
+        opts = super(self.__class__, self).get_opts(model, geno)
+        opts["traitType"] = "binary"
+        opts["model"] = self.model_code
         return opts
 
     def validate_model_spec(self, model_spec):
-        super(self.__class__, self).validate_model_spec(model_spec) 
+        super(self.__class__, self).validate_model_spec(model_spec)
         resp = model_spec.get("response", None)
         if not resp:
             raise Exception("Missing model response")
@@ -288,18 +283,17 @@ class BinarySaigeModel(SaigeModel):
         levels = pheno.get_column_levels(resp_name)
         if not levels:
             raise Exception(("Variable {} does not appear to be a binary trait "
-                "(No levels found)").format(resp_name))
+                             "(No levels found)").format(resp_name))
         if len(levels) != 2:
             raise Exception("Response must have exactly 2 levels, found {}: {}".
-                format(len(levels), ",".join(levels)))
+                            format(len(levels), ",".join(levels)))
         if resp_event:
             if not resp_event in levels:
                 raise Exception(("Requested event level does not match data. "
-                    "Requested: {}; Data: {}").format(resp_event, ",".join(levels)))
+                                 "Requested: {}; Data: {}").format(resp_event, ",".join(levels)))
         else:
             resp_event = levels[1]
 
         resp["event"] = resp_event
         model_spec["response"] = resp
         model_spec["response_desc"] = "Pr({} = {})".format(resp_name, resp_event)
-
