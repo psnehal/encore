@@ -1,0 +1,198 @@
+configfile: "config.yaml"
+
+import os
+import re
+import glob
+
+
+
+
+# Expect these keys in config.yaml; adjust names if needed.
+CHROMS = config["contigs"]
+SAMPLE_FILE = config["samples_file"]
+BASE_DIR = config.get("savs_path")  # e.g., "/path/to/sav_dir"
+BGZIP = config.get("bgzip")
+TABIX = config.get("tabix")
+
+if not BGZIP or not TABIX:
+    raise ValueError("bgzip or tabix path not defined in config.yaml")
+
+OUTDIR  = config.get("output_dir", ".")
+OUTNAME = config.get("outname", "results.txt.gz")
+LOGNAME = config.get("logname", "saige.log")  # step1 log file name from shell below
+
+if OUTDIR != "." and not OUTDIR.endswith("/"):
+    OUTDIR += "/"
+
+FINAL_BGZ = f"{OUTDIR}{OUTNAME}"
+FINAL_TBI = f"{FINAL_BGZ}.tbi"
+LOG_GZ    = f"{OUTDIR}{LOGNAME}.gz"
+
+def create_sav_dict():
+    """
+    Map 'chrN' -> '/path/to/chrN.sav' by scanning BASE_DIR.
+    """
+    if not BASE_DIR:
+        raise ValueError("config['sav_dir'] is not set; cannot locate .sav files")
+
+    sav_files = glob.glob(os.path.join(BASE_DIR, "chr*.sav"))
+    sav_paths = {}
+    for sav_file in sav_files:
+        filename = os.path.basename(sav_file)  # e.g., "chr1.sav"
+        if filename.startswith("chr") and filename.endswith(".sav"):
+            chrom = filename.replace("chr", "").replace(".sav", "")  # e.g., "1"
+            sav_paths[f"chr{chrom}"] = sav_file
+    return sav_paths
+
+# Build once at import
+sav_paths = create_sav_dict()
+
+def get_sav_file(chrom):
+    """
+    Retrieve the exact .sav file for the given chromosome (e.g., 'chr1' -> chr1.sav).
+    """
+    if chrom in sav_paths:
+        return sav_paths[chrom]
+    raise FileNotFoundError(f"No .sav file found for chromosome {chrom} in {BASE_DIR}")
+
+def parse_chrom_from_sav(sav_path):
+    """
+    '/.../chr18.sav' -> 'chr18'
+    """
+    filename = os.path.basename(sav_path)
+    match = re.match(r"(chr[^.]+)\.sav", filename)
+    if not match:
+        raise ValueError(f"Filename {filename} doesn't match expected pattern 'chrXYZ.sav'")
+    return match.group(1)
+
+rule all:
+    input:
+        FINAL_TBI,
+        LOG_GZ
+
+
+rule step1_fitNULLGLMM:
+    input:
+        phenoFile = config["phenoFile"]
+    output:
+        GMMATmodelFile = "step1.rda",
+        varianceRatioFile = "step1.varianceRatio.txt"
+    params:
+        plinkFile = config["plinkFile"],
+        covarColList = config["covarColList"],
+        sampleIDColinphenoFile = config["sampleIDColinphenoFile"],
+        traitType = config["traitType"],
+        outputPrefix = config["outputPrefix"],
+        nThreads = config["nThreads"],
+        IsOverwriteVarianceRatioFile = config["IsOverwriteVarianceRatioFile"],
+        phenoCol = config["response"]     # <-- was {config[response]}
+    shell:
+        r"""
+        set -euo pipefail
+        echo "Output prefix: {params.outputPrefix}"
+
+        step1_fitNULLGLMM.R \
+          --plinkFile={params.plinkFile} \
+          --phenoFile={input.phenoFile} \
+          --phenoCol={params.phenoCol} \
+          --covarColList={params.covarColList} \
+          --sampleIDColinphenoFile={params.sampleIDColinphenoFile} \
+          --traitType={params.traitType} \
+          --outputPrefix={params.outputPrefix} \
+          --nThreads={params.nThreads} \
+          --IsOverwriteVarianceRatioFile={params.IsOverwriteVarianceRatioFile} \
+          > saige.log
+        """
+
+def resolve_sav_file(wildcards):
+    # Helpful logging; appears in Snakemake stdout
+    print("Chromosome is", wildcards.chrom)
+    return get_sav_file(wildcards.chrom)
+
+rule step2_SPAtests:
+    input:
+        savFile = resolve_sav_file,
+        sampleFile = SAMPLE_FILE,
+        GMMATmodelFile = "step1.rda",
+        varianceRatioFile = "step1.varianceRatio.txt"
+    output:
+        SAIGEOutputFile = "step2.bin.{chrom}.txt"
+    log:
+        "step2_SPAtests_{chrom}.log"
+    threads: 54
+    shell:
+        r"""
+        set -euo pipefail
+        echo "Processing {wildcards.chrom} with SAV file: {input.savFile}"
+        echo "Running step2_SPAtests..."
+
+        step2_SPAtests.R \
+          --savFile={input.savFile} \
+          --sampleFile={input.sampleFile} \
+          --vcfField=GT \
+          --SAIGEOutputFile={output.SAIGEOutputFile} \
+          --chrom={wildcards.chrom} \
+          --minMAF=0 \
+          --minMAC=20 \
+          --GMMATmodelFile={input.GMMATmodelFile} \
+          --varianceRatioFile={input.varianceRatioFile} \
+          --is_Firth_beta=TRUE \
+          --pCutoffforFirth=0.05 \
+          --is_output_moreDetails=TRUE \
+          --LOCO=FALSE \
+          > {log}
+        """
+
+ # ----------------------------
+# Merge results (after ALL step2 files are produced)
+# Equivalent to your Makefile awk|tr|bgzip
+# ----------------------------
+rule merge_step2_results:
+    input:
+        expand("step2.bin.{chrom}.txt", chrom=CHROMS)
+    output:
+        FINAL_BGZ
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "{OUTDIR}"
+        awk 'FNR!=1 || NR==1' {input} \
+          | tr " " "\t" \
+          | {BGZIP} -c > {output}
+        """
+
+# ----------------------------
+# Tabix index (creates .tbi)
+# ----------------------------
+rule tabix_index_results:
+    input:
+        FINAL_BGZ
+    output:
+        FINAL_TBI
+    shell:
+        r"""
+        set -euo pipefail
+        {TABIX} -s1 -b2 -e2 -S1 {input}
+        """
+
+# ----------------------------
+# Combine logs into one gz
+# Equivalent to: cat LOGNAME STEP2LOGS | gzip -c > LOGNAME.gz
+# ----------------------------
+rule gzip_logs:
+    input:
+        base_log = "saige.log",
+        step2_logs = expand("step2_SPAtests_{chrom}.log", chrom=CHROMS),
+        tbi = FINAL_TBI
+    output:
+        LOG_GZ
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "{OUTDIR}"
+        cat {input.base_log} {input.step2_logs} | gzip -c > {output}
+        """
+
+
+
+

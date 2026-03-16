@@ -164,7 +164,6 @@ class PedRequiredColumn(Column):
     def __init__(self, coldef, field, pr):
         super(PedRequiredColumn, self).__init__(coldef, pr)
         self.field = field
-        print("filed is ",self.field)
         if not hasattr(self, "name") or self.name is None:
             self.name = field
         else:
@@ -296,10 +295,8 @@ class PedWriter:
           self.header_meta[name] = spec["meta"]
 
       # Covar headers
-      print("Covar specs:", covar_specs)
       covar_raw = [s["raw"] for s in covar_specs]
       covar_uni = uniqueify(covar_raw, self.headers)
-      print("Covar uni:", covar_uni)
       self.covarheaders = covar_uni
       self.headers += covar_uni
       for name, spec in zip(covar_uni, covar_specs):

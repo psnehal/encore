@@ -17,6 +17,8 @@ DEFAULT_CONFIG = {
     'SAVANT_BINARY':'',
     'SAIGE_SIF_FILE':'Saige_Encore.sif',
     'EPACTS_BINARY': 'epacts',
+    'TABIX_BINARY':'',
+     'BGZIP_BINARY': '',
     'QUEUE_JOB_BINARY': 'sbatch',
     'CANCEL_JOB_BINARY': 'scancel',
     'MANHATTAN_BINARY': 'make_manhattan_json.py',

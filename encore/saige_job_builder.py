@@ -16,7 +16,8 @@ class SaigeModel(BaseModel):
         self.cores_per_job = 56
 
 
-    def returnContigs(self,region):
+    def returnContigs(self,region,strip_chr=False):
+
         contigVal={}
         contigDict = {
             "chr1":248956422,
@@ -43,11 +44,15 @@ class SaigeModel(BaseModel):
             "chr22":50818468,
             "chrX":156040895
         }
+        if strip_chr:
+            contigDict = {k.replace("chr", ""): v for k, v in contigDict.items()}
 
         if(region == "all"):
             contigVal= contigDict
         else:
             regval = contigDict.get(region)
+            if strip_chr:
+                key = regval.replace("chr", "").replace("CHR", "")
             contigVal[region]=regval
 
 
@@ -74,14 +79,17 @@ class SaigeModel(BaseModel):
 
         opts['region_size']=10000000
         region_value = model.get("region", None)
+        strip_chr = geno.name and "loss" in geno.name.lower()
+        contigval =''
         if region_value is None:
             contigval = self.returnContigs("all")
             opts['contigs']=contigval
         else:
             region = model.get("region")
-            print("region",region)
             if region.startswith("CHR"):
                 region = region[3:]
+            if strip_chr:
+                region= region.replace("chr", "").replace("CHR", "")
             opts["CHRS"] = region
 
         # elif geno.get_chromosomes():
@@ -92,13 +100,11 @@ class SaigeModel(BaseModel):
 
 
         pipeline = self.app_config["SAIGE_SIF_FILE"]
-        print("pipiline is",pipeline)
-
         if "SAIGE_BINARY" in self.app_config:
             binary = self.app_config["SAIGE_BINARY"]
         if isinstance(binary, tuple):
             binary = binary[0]
-        print("binary is",binary)
+
         if not binary:
             raise Exception("Unable to find Saige sif file file  (pipeline: {})".format(pipeline))
         #for dev singularity exec -B /net/wonderland:/net/wonderland:ro,/net/dumbo:/net/dumbo:ro
@@ -119,10 +125,9 @@ class SaigeModel(BaseModel):
         optlist["nThreads"]= 54
         optlist["sampleIDColinphenoFile"]= "IND_ID"
         optlist["IsOverwriteVarianceRatioFile"]= "TRUE"
-        print("just above **********",self.app_config["BIND_MOUNT"])
         optlist["BIND_MOUNT"]=self.app_config["BIND_MOUNT"]
-
-
+        optlist["bgzip"]=self.app_config.get("BGZIP_BINARY")
+        optlist["tabix"]=self.app_config.get("TABIX_BINARY")
         resplist = ped.get("response")
 
         if len(resplist)>0:
@@ -149,10 +154,12 @@ class SaigeModel(BaseModel):
 
     def get_postprocessing_commands(self, geno, result_file="./results.txt.gz"):
         cmds = []
-        cmds.append("zcat -f {} | ".format(result_file) + \
-            'awk -F"\\t" \'BEGIN {OFS="\\t"} NR==1 {for (i=1; i<=NF; ++i) {if($i=="p.value") pcol=i; if($i=="N") ncol=i}; if (pcol<1 || ncol<1) exit 1; print} ' + \
-            '($ncol > 0 && $pcol < 0.001) {print}\' | ' + \
-            "{} -c > output.filtered.001.gz".format(self.app_config.get("BGZIP_BINARY", "bgzip")))
+        #add these paramaters in config file
+        #cmds.append("zcat -f {} | ".format(result_file) + \
+            # 'awk -F"\\t" \'BEGIN {OFS="\\t"} NR==1 {for (i=1; i<=NF; ++i) {if($i=="p.value") pcol=i; if($i=="N") ncol=i}; if (pcol<1 || ncol<1) exit 1; print} ' + \
+            # '($ncol > 0 && $pcol < 0.001) {print}\' | ' + \
+            # "{} -c > output.filtered.001.gz".format(self.app_config.get("BGZIP_BINARY", "bgzip")))
+
         if self.app_config.get("MANHATTAN_BINARY"):
             cmd  = "{} {} ./manhattan.json".format(self.app_config.get("MANHATTAN_BINARY", ""), result_file)
             cmds.append(cmd)

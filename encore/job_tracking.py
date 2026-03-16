@@ -38,7 +38,7 @@ class Tracker(object):
         job = None
         try:
             job = Job.get(job_id, config)
-            print("jobs is ",job)
+            #print("jobs is ",job)
         except Exception as e:
             print("Error Fetching Job in Tracker")
             print(e)
@@ -65,7 +65,6 @@ class Tracker(object):
             status = "succeeded"
 
         if status:
-            print("status from job tracking", status)
             Job.update_status(job_id, status, reason, old_status)
             notifier = get_notifier()
             if notifier:
@@ -89,7 +88,6 @@ class Tracker(object):
         slurm_jobs_found = dict()
         for line in squeue_out.decode().rstrip().split("\n"):
             if line:
-                print(line)
                 slurm_job = line.strip().split("|")
                 # strip off "gasp_"
                 job_name = slurm_job[3][5:]
@@ -119,7 +117,6 @@ class Tracker(object):
             config = current_app.config
             try:
                 jobs = self.query_pending_jobs()
-                print(jobs)
                 if len(jobs) != 0:
                     self.update_job_statuses(jobs, config)
             except Exception as e:
