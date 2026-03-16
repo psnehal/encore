@@ -104,14 +104,16 @@ class SaigeModel(BaseModel):
             binary = self.app_config["SAIGE_BINARY"]
         if isinstance(binary, tuple):
             binary = binary[0]
+        bind_path = self.app_config["BIND_MOUNT"]
 
         if not binary:
             raise Exception("Unable to find Saige sif file file  (pipeline: {})".format(pipeline))
         #for dev singularity exec -B /net/wonderland:/net/wonderland:ro,/net/dumbo:/net/dumbo:ro
         #cmd = "singularity exec -B /net/encore1/savant:/net/encore1/savant:ro -B /net/encore1/encoredata:/net/encore1/encoredata {} ".format(pipeline) + \
-        cmd = "singularity exec --cleanenv {} ".format(pipeline) + \
-              " snakemake --snakefile {}".format(binary)+ \
-              " -j ${SLURM_CPUS_PER_TASK}"
+        cmd =  (
+                "singularity exec --bind {} --cleanenv {} ".format(bind_path, pipeline)
+                + "snakemake --snakefile {} -j SLURM_CPUS_PER_TASK".format(binary)
+        )
 
         optlist = self.get_opts(model_spec, geno)
         optlist["post_processing_script_dir"]=self.app_config["POST_PROCESSING_SCRIPT"]
@@ -121,15 +123,15 @@ class SaigeModel(BaseModel):
         optlist["samples_file"]= geno.get_samples_path()
         optlist["output_dir"]=self.working_directory
         optlist["phenoFile"]= ped.get("path")
+        optlist["BIND_MOUNT"]=bind_path
         optlist["outputPrefix"]= "step1"
         optlist["nThreads"]= 54
         optlist["sampleIDColinphenoFile"]= "IND_ID"
         optlist["IsOverwriteVarianceRatioFile"]= "TRUE"
-        optlist["BIND_MOUNT"]=self.app_config["BIND_MOUNT"]
+
         print("bind mount",self.app_config["BIND_MOUNT"])
         optlist["bgzip"]=self.app_config.get("BGZIP_BINARY")
         optlist["tabix"]=self.app_config.get("TABIX_BINARY")
-        print("bgzip is : ",self.app_config.get("BGZIP_BINARY") ,"tabix : ", self.app_config.get("TABIX_BINARY") )
         resplist = ped.get("response")
 
         if len(resplist)>0:

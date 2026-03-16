@@ -76,7 +76,8 @@ rule step1_fitNULLGLMM:
         phenoFile = config["phenoFile"]
     output:
         GMMATmodelFile = "step1.rda",
-        varianceRatioFile = "step1.varianceRatio.txt"
+        varianceRatioFile = "step1.varianceRatio.txt",
+        saige_log = "saige.log"
     params:
         plinkFile = config["plinkFile"],
         covarColList = config["covarColList"],
