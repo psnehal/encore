@@ -129,7 +129,7 @@ class SaigeModel(BaseModel):
         print("bind mount",self.app_config["BIND_MOUNT"])
         optlist["bgzip"]=self.app_config.get("BGZIP_BINARY")
         optlist["tabix"]=self.app_config.get("TABIX_BINARY")
-        println("bgzip is : ",self.app_config.get("BGZIP_BINARY") ,"tabix : ", self.app_config.get("TABIX_BINARY") )
+        print("bgzip is : ",self.app_config.get("BGZIP_BINARY") ,"tabix : ", self.app_config.get("TABIX_BINARY") )
         resplist = ped.get("response")
 
         if len(resplist)>0:
