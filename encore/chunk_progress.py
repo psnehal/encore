@@ -4,6 +4,18 @@ import os
 import glob
 
 def bin_chunks_by_chr_and_age(chunks, now):
+    """
+    Groups chunk records by chromosome and by age bucket.
+
+    Each chunk is assigned to an age group based on how many minutes old
+    its modified timestamp is compared to 'now':
+      0 = less than 10 minutes old
+      1 = between 10 and 60 minutes old
+      2 = older than 60 minutes
+
+    Returns a dictionary keyed by (chromosome, age_group), where each value
+    contains the chromosome, age group, and a sorted list of chunks.
+    """
     def get_age_group(a):
         diff_minutes = (now-a)/60
         if diff_minutes < 10:
@@ -69,6 +81,16 @@ def collapse_chunk_bins(bins):
     return results
 
 def get_gene_chunk_progress(output_file_glob, input_file_glob, min_done_age=0):
+    """
+    Calculates simple progress counts by comparing input files to output files.
+
+    - Counts total input files matching input_file_glob
+    - Counts completed output files matching output_file_glob
+    - Optionally filters output files so only files older than min_done_age
+      minutes are counted as complete
+
+    Returns a progress dictionary with total and complete counts.
+    """
     in_files = glob.glob(input_file_glob)
     out_files = glob.glob(output_file_glob)
     if min_done_age>0:
@@ -78,6 +100,27 @@ def get_gene_chunk_progress(output_file_glob, input_file_glob, min_done_age=0):
         out_files = [x for x in out_files if age_in_minutes(x)>min_done_age]
     return {"data": {"total": len(in_files), "complete": len(out_files)}, 
         "header": {"format": "progress"}}
+
+
+def get_chr_file_progress(output_file_glob, expected_total=None):
+    """
+    Returns simple chromosome-level progress based on completed per-chromosome files.
+    """
+    files = glob.glob(output_file_glob)
+    complete = len(files)
+
+    if expected_total is None:
+        expected_total = 24  # chr1-22, X, Y
+
+    return {
+        "data": {
+            "total": expected_total,
+            "complete": complete
+        },
+        "header": {
+            "format": "progress"
+        }
+    }
 
 def get_chr_chunk_progress(output_file_glob, fileregex):
     files = glob.glob(output_file_glob)
@@ -97,6 +140,7 @@ def get_chr_chunk_progress(output_file_glob, fileregex):
             chunks.append(chunk)
         
         result = collapse_chunk_bins(bin_chunks_by_chr_and_age(chunks, now))
+        print("result from chunk",result)
         return {"data": result, "header": {"format": "ideogram"}}
     else:
         return {"data": []}

@@ -1,7 +1,7 @@
 from .base_model import BaseModel
 from .ped_writer import PedWriter
 import os
-from .chunk_progress import get_chr_chunk_progress
+from .chunk_progress import get_chr_chunk_progress, get_chr_file_progress
 import yaml
 
 
@@ -203,6 +203,8 @@ class SaigeModel(BaseModel):
         output_file_glob = self.relative_path("step2.bin.*.txt")
         fre = r'step2\.bin\.(?P<chr>\w+)\.txt$'
         resp = get_chr_chunk_progress(output_file_glob, fre)
+        resp2=get_chr_file_progress(output_file_glob, fre)
+        print("result from new file athod",resp2 )
         return resp
 
     def validate_model_spec(self, model_spec):

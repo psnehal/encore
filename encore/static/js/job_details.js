@@ -353,6 +353,9 @@ function init_chunk_progress(job_id, selector) {
             if (chunks.complete && chunks.total) {
                 draw_progress_bar(selector, chunks.complete/chunks.total);
             }
+            else if (format == "chromosome") {
+                        draw_chromosome_progress(selector, chunks);
+                    }
         }
     });
 }
