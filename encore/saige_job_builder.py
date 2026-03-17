@@ -14,7 +14,7 @@ class SaigeModel(BaseModel):
         BaseModel.__init__(self, working_directory, app_config)
         self.cores_per_job = 56
 
-    def returnContigs(self, region, strip_chr=False):
+    def returnContigs(self, region):
 
         contigVal = {}
         contigDict = {
@@ -42,15 +42,12 @@ class SaigeModel(BaseModel):
             "chr22": 50818468,
             "chrX": 156040895
         }
-        if strip_chr:
-            contigDict = {k.replace("chr", ""): v for k, v in contigDict.items()}
+
 
         if (region == "all"):
             contigVal = contigDict
         else:
             regval = contigDict.get(region)
-            if strip_chr:
-                key = regval.replace("chr", "").replace("CHR", "")
             contigVal[region] = regval
 
         return contigVal
@@ -78,6 +75,7 @@ class SaigeModel(BaseModel):
         print("geno name",geno.name.lower())
         strip_chr = geno.name and "loss" in geno.name.lower()
         print("strip_chr",strip_chr)
+        opts["lof"] =strip_chr
         contigval = ''
         if region_value is None:
             contigval = self.returnContigs("all",strip_chr)
