@@ -122,7 +122,6 @@ rule step1_fitNULLGLMM:
 
 
 rule step2_SPAtests:
-
     input:
         savFile = resolve_sav_file,
         sampleFile = sample_file,
