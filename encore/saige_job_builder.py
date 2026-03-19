@@ -78,7 +78,7 @@ class SaigeModel(BaseModel):
         opts["lof"] =strip_chr
         contigval = ''
         if region_value is None:
-            contigval = self.returnContigs("all",strip_chr)
+            contigval = self.returnContigs("all")
             opts['contigs'] = contigval
         else:
             region = model.get("region")

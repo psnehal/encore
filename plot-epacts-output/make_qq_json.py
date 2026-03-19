@@ -180,6 +180,7 @@ class AssocResultReader:
             "CHR": "CHROM",
             "POS": "BEGIN",
             "SNPID": "MARKER_ID",
+            "MarkerID":"MARKER_ID",
             "N": "NS",
             "p.value": "PVALUE"}
         for i, col in enumerate(header):

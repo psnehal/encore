@@ -164,6 +164,7 @@ class AssocResultReader:
             "CHR": "CHROM",
             "POS": "BEGIN",
             "SNPID": "MARKER_ID",
+            "MarkerID":"MARKER_ID",
             "N": "NS",
             "p.value": "PVALUE",
             "Allele1": "ref",
