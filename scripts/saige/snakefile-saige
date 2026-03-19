@@ -158,7 +158,7 @@ rule step2_SPAtests:
           > {log}
         """
 
- # ----------------------------
+# ----------------------------
 # Merge results (after ALL step2 files are produced)
 # Equivalent to your Makefile awk|tr|bgzip
 # ----------------------------
