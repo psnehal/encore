@@ -73,7 +73,7 @@ class SaigeModel(BaseModel):
         opts['region_size'] = 10000000
         region_value = model.get("region", None)
         print("geno name",geno.name.lower())
-        strip_chr = geno.name and "loss" in geno.name.lower()
+        strip_chr = geno.name and "lossoffunction6" in geno.name.lower()
         print("strip_chr",strip_chr)
         opts["lof"] =strip_chr
         contigval = ''
@@ -116,6 +116,7 @@ class SaigeModel(BaseModel):
         optlist["savs_path"] = geno.get_sav_path(1).replace("chr1.sav", "")
         optlist["plinkFile"] = geno.get_pca_genotypes_path().replace(".bed", "")
         optlist["samples_file"] = geno.get_samples_path()
+        optlist["samplesfile_male"] = geno.get_samplesfile_male_path()
         optlist["output_dir"] = self.working_directory
         optlist["phenoFile"] = ped.get("path")
         optlist["BIND_MOUNT"] = bind_path

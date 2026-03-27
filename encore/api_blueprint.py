@@ -696,7 +696,7 @@ def readSampleIDtoChipDict():
 
 
 def addChipColumn(afile,bfile):
-    print(afile)
+    print("afile",afile)
     print(bfile)
     id_dict = readSampleIDtoChipDict()
     with open(afile, 'r') as csvfile:

@@ -190,6 +190,15 @@ class Genotype:
         else:
             return None
 
+
+    def get_samplesfile_male_path(self):
+        samplesmale_path = self.meta.get("sampleFile_male", "")
+        samplesmale_path = self.relative_path(samplesmale_path)
+        if os.path.isfile(samplesmale_path):
+            return samplesmale_path
+        else:
+            return None
+
     def get_pca_genotypes_path(self, must_exist=False):
         geno_path = self.meta.get("pca_genotypes_path", None)
         if not geno_path:

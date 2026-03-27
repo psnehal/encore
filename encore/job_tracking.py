@@ -8,6 +8,7 @@ import pwd
 from flask import current_app
 from .notifier import get_notifier
 from .job import Job
+import traceback
 
 
 class JobRec(object):
@@ -86,12 +87,12 @@ class Tracker(object):
 
         # keep only most recent submission date for each job
         slurm_jobs_found = dict()
-        for line in squeue_out.decode().rstrip().split("\n"):
+        for line in squeue_out.decode("utf-8", errors="replace").rstrip().split("\n"):
             if line:
                 slurm_job = line.strip().split("|")
                 # strip off "gasp_"
                 job_name = slurm_job[3][5:]
-                #print("job name form update status",job_name)
+                print("job name form update status",job_name)
                 if job_name in slurm_jobs_found:
                     prev_date = datetime.datetime.strptime(slurm_jobs_found[job_name][4], '%Y-%m-%dT%H:%M:%S')
                     curr_date = datetime.datetime.strptime(slurm_job[4], '%Y-%m-%dT%H:%M:%S')
@@ -119,6 +120,7 @@ class Tracker(object):
             except Exception as e:
                 print("Tracker Call Back Error")
                 print(e)
+                traceback.print_exc()
 
     def timer_callback(self):
         try:

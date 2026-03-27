@@ -10,6 +10,7 @@ import glob
 # Expect these keys in config.yaml; adjust names if needed.
 chroms = config["contigs"]
 sample_file = config["samples_file"]
+sample_file_male =config["samplesfile_male"]
 base_dir = config.get("savs_path")  # e.g., "/path/to/sav_dir"
 bgzip = config.get("bgzip")
 tabix = config.get("tabix")
@@ -125,6 +126,7 @@ rule step2_SPAtests:
     input:
         savFile = resolve_sav_file,
         sampleFile = sample_file,
+        sampleFileMale =sample_file_male,
         GMMATmodelFile = "step1.rda",
         varianceRatioFile = "step1.varianceRatio.txt"
     output:
@@ -133,7 +135,8 @@ rule step2_SPAtests:
         "step2_SPAtests_{chrom}.log"
     threads: 54
     params:
-        chromVal = resolve_step2_chrom_arg
+        chromVal = resolve_step2_chrom_arg,
+        X_PARregion = "10001-2781479,155701383-156030895"
     shell:
         r"""
         set -euo pipefail
@@ -143,6 +146,9 @@ rule step2_SPAtests:
         step2_SPAtests.R \
           --savFile={input.savFile} \
           --sampleFile={input.sampleFile} \
+          --sampleFile_male={input.sampleFileMale} \
+          --X_PARregion={params.X_PARregion} \
+          --is_rewrite_XnonPAR_forMales=TRUE \
           --vcfField=GT \
           --SAIGEOutputFile={output.SAIGEOutputFile} \
           --chrom={params.chromVal} \
@@ -154,6 +160,8 @@ rule step2_SPAtests:
           --pCutoffforFirth=0.05 \
           --is_output_moreDetails=TRUE \
           --LOCO=FALSE \
+          --X_PARregion="10001-2781479,155701383-156030895" \
+          --is_rewrite_XnonPAR_forMales=TRUE\
           > {log}
         """
 
