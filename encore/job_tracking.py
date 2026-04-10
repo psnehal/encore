@@ -39,7 +39,7 @@ class Tracker(object):
         job = None
         try:
             job = Job.get(job_id, config)
-            #print("jobs is ",job)
+            print("jobs is ",job)
         except Exception as e:
             print("Error Fetching Job in Tracker")
             print(e)
@@ -62,17 +62,30 @@ class Tracker(object):
             status = "failed"
             if job:
                 reason = job.get_failure_reason() or ""
+                print("reason",reason)
         elif slurm_status == "COMPLETED":
             status = "succeeded"
 
         if status:
-            Job.update_status(job_id, status, reason, old_status)
+            try:
+                Job.update_status(job_id, status, reason, old_status)
+            except Exception as e:
+                print("update_status failed:", repr(e))
+                traceback.print_exc()
             notifier = get_notifier()
             if notifier:
                 try:
                     if status == "failed":
-                        job = Job.get(job_id, config)
-                        notifier.send_failed_job(job_id, job)
+                        try:
+                            job = Job.get(job_id, config)
+                        except Exception as e:
+                            print("Job.get failed:", repr(e))
+                            traceback.print_exc()
+                        try:
+                            notifier.send_failed_job(job_id, job)
+                        except Exception as e:
+                            print("send_failed_job failed:", repr(e))
+                            traceback.print_exc()
                 except:
                     pass
 

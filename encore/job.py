@@ -88,6 +88,7 @@ class Job:
 
     def get_failure_reason(self, config = None):
         model = self.get_model(config)
+        print("get_failure_reason")
         if model:
             return model.get_failure_reason()
         return None

@@ -223,6 +223,7 @@ class SaigeModel(BaseModel):
 
     def get_failure_reason(self):
         log_file_path = self.relative_path("saige.log")
+        print("get_failure_reason",log_file_path)
         if not os.path.isfile(log_file_path):
             return None
         with open(log_file_path, 'rt') as f:
