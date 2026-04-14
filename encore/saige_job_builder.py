@@ -226,7 +226,7 @@ class SaigeModel(BaseModel):
         print("get_failure_reason",log_file_path)
         if not os.path.isfile(log_file_path):
             return None
-        with open(log_file_path, 'rt') as f:
+        with open(log_file_path, 'r', encoding='utf-8', errors='replace') as f:
             for line in f:
                 if "matrix is singular" in line:
                     return "Matrix is singular or not positive definite"
