@@ -298,15 +298,8 @@
                     if (hideCols.indexOf(col.class)<0 &&
                         col.class != "fixed" && col.class != "id" && col.class!= "descr") {
 
-                        if(col.name =="chip")
-                        {
-                            console.log("found chip");
                             opts.push({id: col.name, text: col.name});
-                        }
-                        else
-                        {
-                            opts.push({id: col.name, text: col.name});
-                        }
+
 
 
                     }

@@ -14,13 +14,9 @@ from oic.oic.message import RegistrationResponse
 from oic.utils.authn.client import CLIENT_AUTHN_METHOD
 from oic.oic.message import ProviderConfigurationResponse
 
-
-
 # or
 # op_info = ProviderConfigurationResponse(**info)
 # if you have the provider info in the form of a dictionary
-
-
 
 
 import os
@@ -35,30 +31,28 @@ from oic.utils.authn.client import ClientSecretBasic, ClientSecretPost
 googleinfo = requests.get("https://accounts.google.com/.well-known/openid-configuration")
 google_params = googleinfo.json()
 
+umichinfo = requests.get("https://shibboleth.umich.edu/.well-known/openid-configuration")
+# umichinfo=requests.get("https://shib-idp-test.www.umich.edu/.well-known/openid-configuration")
 
-umichinfo=requests.get("https://shibboleth.umich.edu/.well-known/openid-configuration")
-#umichinfo=requests.get("https://shib-idp-test.www.umich.edu/.well-known/openid-configuration")
-
-umich_params=umichinfo.json()
+umich_params = umichinfo.json()
 
 # AUTHMACHINE_URL = "https://shib-idp-test.www.umich.edu/.well-known/openid-configuration"
 # AUTHMACHINE_API_TOKEN = umich_params.get("token_endpoint")
 ENCORE_SCOPE = 'openid edumember email'
-
 
 auth = Blueprint("auth", __name__)
 
 login_manager = LoginManager()
 
 
-def encode_auth_token(user_id, duration = "4hour"):
+def encode_auth_token(user_id, duration="4hour"):
     now_time = datetime.datetime.utcnow()
     if duration == "4hour":
         expire_time = now_time + datetime.timedelta(hours=4, seconds=0)
     elif duration == "7day":
         expire_time = now_time + datetime.timedelta(days=7, seconds=0)
     else:
-        raise Exception("Invalid token duration: %s".format(duration))
+        raise Exception("Invalid token duration: {}".format(duration))
     try:
         payload = {
             'exp': expire_time,
@@ -74,14 +68,16 @@ def encode_auth_token(user_id, duration = "4hour"):
         print(e)
         return None
 
+
 def decode_auth_token(auth_token):
     try:
-        payload = jwt.decode(auth_token, current_app.config.get('JWT_SECRET_KEY'))
+        payload = jwt.decode(auth_token, current_app.config.get('JWT_SECRET_KEY'), algorithms=['HS256'])
         return payload['sub']
     except jwt.ExpiredSignatureError:
         return 'Signature expired. Please log in again.'
     except jwt.InvalidTokenError:
         return 'Invalid token. Please log in again.'
+
 
 @login_manager.request_loader
 def user_loader_from_request(request):
@@ -101,9 +97,11 @@ def user_loader_from_request(request):
             print(e)
     return None
 
+
 @login_manager.user_loader
 def user_loader(email):
     return load_user(email)
+
 
 @auth.route("/sign-in", methods=["GET"])
 def get_sign_in():
@@ -111,12 +109,15 @@ def get_sign_in():
         session["post_login_page"] = request.args.get("orig")
     return get_sign_in_view("sign-in")
 
+
 @auth.route("/signin", methods=["GET"])
 def get_signin():
-     if request.args.get("orig", None):
-         session["post_login_page"] = request.args.get("orig")
-     return get_check_in_oidcview("signin")
-    #return redirect(get_authorization_url())
+    if request.args.get("orig", None):
+        session["post_login_page"] = request.args.get("orig")
+    return get_check_in_oidcview("signin")
+
+
+# return redirect(get_authorization_url())
 
 
 @auth.route("/checkin", methods=["GET"])
@@ -129,7 +130,8 @@ def get_checkin():
 def get_check_in_oidcview(target):
     signin_url = request.url_root + target
     client = Client(client_authn_method=CLIENT_AUTHN_METHOD)
-    info = {"client_id": current_app.config.get("UMICH_LOGIN_CLIENT_ID", None), "client_secret": current_app.config.get("UMICH_LOGIN_CLIENT_SECRET", None)}
+    info = {"client_id": current_app.config.get("UMICH_LOGIN_CLIENT_ID", None),
+            "client_secret": current_app.config.get("UMICH_LOGIN_CLIENT_SECRET", None)}
     client_reg = RegistrationResponse(**info)
     client.store_registration_info(client_reg)
 
@@ -139,17 +141,21 @@ def get_check_in_oidcview(target):
         token_endpoint=umich_params.get("token_endpoint"),
         userinfo_endpoint=umich_params.get("userinfo_endpoint"),
         jwks_uri=umich_params.get("jwks_uri"),
-        )
+    )
     client.handle_provider_config(op_info, op_info['issuer'])
 
     # //SO if the user is part of that encore group, then will check if the user exist in the table using unique name , if not then create user using following command
     # //and then allow acccess
     if "code" in request.args:
+        returned_state = request.args.get("state")
+        expected_state = session.pop("oidc_state", None)
+        if not expected_state or returned_state != expected_state:
+            return render_template("/signin.html", error_message="Invalid login state")
         authorization_response = client.parse_response(
             AuthorizationResponse,
             info=request.args,
             sformat='dict')
-       # print("*****************************************************authorization reposnse***************************")
+        # print("*****************************************************authorization reposnse***************************")
         args = {
             'code': authorization_response['code'],
             'client_id': client.client_id,
@@ -157,78 +163,93 @@ def get_check_in_oidcview(target):
             'redirect_uri': signin_url
         }
 
-        access_token_ret= client.do_access_token_request(
+        access_token_ret = client.do_access_token_request(
             scope=ENCORE_SCOPE,
             state=authorization_response['state'],
             request_args=args,
             authn_method='client_secret_post')
 
-        #print("***************************************************** access_token_ret ***************************")
-        #print(access_token_ret)
+        # print("***************************************************** access_token_ret ***************************")
+
         access_token2 = access_token_ret['access_token']
 
-        #userinfo_request(access_token)
+        # userinfo_request(access_token)
         # Parameters:	access_token (str) – Bearer access token to use when fetching userinfo
         # Returns:	UserInfo Response
         # Return type:	oic.oic.message.OpenIDSchema
 
-        user_info2=client.user_info_request(
-            access_token=access_token2
-        )
         user_info = client.do_user_info_request(
             access_token=access_token2)
-        useremail= user_info['email']
+        useremail = user_info['email']
         usersub = user_info['sub']
-        #print(usersub)
 
         user = load_uniquename(usersub)
-        if user:
-            print("got the user")
-        else:
-            #print("from the else loop load_user")
+        if not user:
             user = load_user(useremail)
             if user:
-
-                uname =user.unique_name
-
+                uname = user.unique_name
                 if uname == 'NULL':
-
                     db = sql_pool.get_conn()
-                    userdev= {}
-                    userdev['email']=useremail
-                    userdev['fullname']=usersub
-                    userdev['uniquename']=usersub
-                    userdev['affiliation']='test'
-                    #userdev['creation_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
-                    #userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
-                    user.fix_nullentry(userdev,db)
+                    userdev = {}
+                    userdev['email'] = useremail
+                    userdev['fullname'] = usersub
+                    userdev['uniquename'] = usersub
+                    userdev['affiliation'] = 'test'
+                    # userdev['creation_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
+                    # userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
+                    user.fix_nullentry(userdev, db)
                 elif not uname:
-
                     db = sql_pool.get_conn()
-                    userdev= {}
-                    userdev['email']=useremail
-                    userdev['fullname']=usersub
-                    userdev['uniquename']=usersub
-                    userdev['affiliation']='test'
-                    user.fix_nullentry(userdev,db)
-
-
-                else:
-                    print('usersub',usersub)
-
-
-        #print("user from load_uniquename",user)
+                    userdev = {}
+                    userdev['email'] = useremail
+                    userdev['fullname'] = usersub
+                    userdev['uniquename'] = usersub
+                    userdev['affiliation'] = 'test'
+                    user.fix_nullentry(userdev, db)
 
         if 'edumember_ismemberof' in user_info.keys():
-            groupinfo= user_info['edumember_ismemberof']
-            #print("user is inside the group")
-            #print("***************** is present or not in the db")
-            if user:
-                print("user is present in the db")
-                if user.is_active():
-                   #print("user is active")
-                    flask_login.login_user(user)
+            groupinfo = user_info['edumember_ismemberof']
+
+            if isinstance(groupinfo, str):
+                groupinfo = [groupinfo]
+
+            is_member = any(g.lower() == "encore mgi" for g in groupinfo)
+
+            if is_member:
+                if user:
+                    if user.is_active():
+                        flask_login.login_user(user)
+                        redirect_to = session.pop("post_login_page", None)
+                        try:
+                            endpoint, arguments = current_app.url_map.bind('localhost').match(redirect_to)
+                        except Exception as e:
+                            redirect_to = None
+                        if redirect_to:
+                            return redirect(redirect_to)
+                        else:
+                            return redirect(url_for("user.index"))
+                    else:
+                        error_message = "Account not active ({})".format(user_info["email"])
+                        return render_template("/signin.html", error_message=error_message)
+                else:
+                    db = sql_pool.get_conn()
+                    userdev = {}
+                    userdev['email'] = useremail
+                    userdev['fullname'] = usersub
+                    userdev['uniquename'] = usersub
+                    userdev['affiliation'] = 'test'
+                    # userdev['creation_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
+                    # userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
+                    userdev['can_analyze'] = 1
+                    userdev['is_active'] = 1
+                    userdev['signed_con'] = 1
+
+                    ##Pass the dictionary to db cursor and then create user
+                    usercreate = User.createUser(userdev, db)
+                    usercreate.log_login(db)
+                    flask_login.login_user(usercreate)
                     redirect_to = session.pop("post_login_page", None)
+
                     try:
                         endpoint, arguments = current_app.url_map.bind('localhost').match(redirect_to)
                     except Exception as e:
@@ -236,64 +257,31 @@ def get_check_in_oidcview(target):
                     if redirect_to:
                         return redirect(redirect_to)
                     else:
-                        #print("user is not active")
                         return redirect(url_for("user.index"))
-                else:
-                    error_message = "Account not active ({})".format(user_info["email"])
-                    return render_template("/signin.html", error_message=error_message)
             else:
-                db = sql_pool.get_conn()
-                #print("user is not present in the db")
-                #print("create user")
-                userdev= {}
-                userdev['email']=useremail
-                userdev['fullname']=usersub
-                userdev['uniquename']=usersub
-                userdev['affiliation']='test'
-                #userdev['creation_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
-                #userdev['last_login_date']="DATE_FORMAT(2020-02-17 19:45:17, '%%Y-%%m-%%d %%H:%%i:%%s')"
-                userdev['can_analyze']=1
-                userdev['is_active']=1
-                userdev['signed_con']=1
-
-
-                ##Pass the dictionary to db cursor and then create user
-                usercreate = User.createUser(userdev,db)
-                usercreate.log_login(db)
-                flask_login.login_user(usercreate)
-                redirect_to = session.pop("post_login_page", None)
-
-                try:
-                    endpoint, arguments = current_app.url_map.bind('localhost').match(redirect_to)
-                except Exception as e:
-                    redirect_to = None
-                if redirect_to:
-                    return redirect(redirect_to)
-                else:
-                    return redirect(url_for("user.index"))
-        else:
-            #print("user is not the part of the group")
-            if user:
-                #print("user is not in the encore group but available in the database")
-                user.is_active = 0
-                db = sql_pool.get_conn()
-                db.commit()
+                if user:
+                    db = sql_pool.get_conn()
+                    user.set_inactive(db)
                 error_message = "User is not part of the Encore_mgi mcommunity group ({})".format(user_info['email'])
                 return render_template("/signin.html", error_message=error_message)
+        else:
             error_message = "Not an authorized user ({})".format(user_info['email'])
             return render_template("/signin.html", error_message=error_message)
     elif "authorize" in request.args:
         nonce = rndstr()
+        state = rndstr()
+
+        session["oidc_state"] = state
         args = {
             'client_id': current_app.config.get("UMICH_LOGIN_CLIENT_ID", None),
             'response_type': 'code',
             'scope': ENCORE_SCOPE,
             'nonce': nonce,
             'redirect_uri': signin_url,
-            'state': 'some-state-which-will-be-returned-unmodified'
+            'state': state
         }
         url = umich_params.get("authorization_endpoint") + '?' + urlencode(args, True)
-        #print(url)
+
         return redirect(url)
     else:
         return render_template("/signin.html")
@@ -305,6 +293,7 @@ def get_auth_token():
     duration = request.args.get("duration", "4hour")
     return encode_auth_token(current_user.email, duration)
 
+
 @login_manager.unauthorized_handler
 def unauthorized():
     if request.path.startswith("/api"):
@@ -315,52 +304,51 @@ def unauthorized():
             orig = None
         return redirect(url_for("auth.get_signin", orig=orig))
 
+
 @auth.route("/sign-out", methods=["GET"])
 def sign_out():
     logout_user()
     return redirect(url_for("auth.get_signin"))
 
 
-
 def load_userfullname(fullname):
     db = sql_pool.get_conn()
     user = User.from_full_name(fullname, db)
     if user:
-        #try:
+        # try:
         user.log_login(db)
-        #except:
+        # except:
         #    pass
         return user
     else:
         return None
-
 
 
 def load_uniquename(uniquename):
     db = sql_pool.get_conn()
     user = User.from_unique_name(uniquename, db)
-    #print(user)
+
     if user:
-        #try:
+        # try:
         user.log_login(db)
-        #except:
+        # except:
         #    pass
         return user
     else:
         return None
+
 
 def load_user(email):
     db = sql_pool.get_conn()
     user = User.from_email(email, db)
     if user:
-        #try:
+        # try:
         user.log_login(db)
-        #except:
+        # except:
         #    pass
         return user
     else:
         return None
-
 
 
 def get_sign_in_view(target):
@@ -380,12 +368,11 @@ def get_sign_in_view(target):
                   "redirect_uri": signin_url},
             decoder=json.loads)
 
-
         user_data = oauth_session.get("").json()
         user = load_user(user_data["email"])
         if user:
             if user.is_active():
-                #print("user is active")
+
                 flask_login.login_user(user)
                 redirect_to = session.pop("post_login_page", None)
                 try:
@@ -408,9 +395,7 @@ def get_sign_in_view(target):
             response_type="code",
             prompt="select_account",
             redirect_uri=signin_url)
-        #print(authorize_url)
 
         return redirect()
     else:
         return render_template("/sign_in.html")
-

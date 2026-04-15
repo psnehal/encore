@@ -53,9 +53,10 @@ class User(UserMixin):
 
     def set_inactive(self,db):
         cur = db.cursor(MySQLdb.cursors.DictCursor)
-        sql = "UPDATE users SET is_active = %s"
-        cur.execute(sql, (self.rid, ))
+        sql = "UPDATE users SET is_active = %s WHERE id = %s"
+        cur.execute(sql, (0, self.rid))
         db.commit()
+        self._is_active = 0
 
     def get_collaborator(self, rid, db=None):
         where = WhereAll(

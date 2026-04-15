@@ -39,7 +39,7 @@ class Tracker(object):
         job = None
         try:
             job = Job.get(job_id, config)
-            print("jobs is ",job)
+
         except Exception as e:
             print("Error Fetching Job in Tracker")
             print(e)
@@ -62,7 +62,7 @@ class Tracker(object):
             status = "failed"
             if job:
                 reason = job.get_failure_reason() or ""
-                print("reason",reason)
+
         elif slurm_status == "COMPLETED":
             status = "succeeded"
 
@@ -105,7 +105,6 @@ class Tracker(object):
                 slurm_job = line.strip().split("|")
                 # strip off "gasp_"
                 job_name = slurm_job[3][5:]
-                print("job name form update status",job_name)
                 if job_name in slurm_jobs_found:
                     prev_date = datetime.datetime.strptime(slurm_jobs_found[job_name][4], '%Y-%m-%dT%H:%M:%S')
                     curr_date = datetime.datetime.strptime(slurm_job[4], '%Y-%m-%dT%H:%M:%S')
